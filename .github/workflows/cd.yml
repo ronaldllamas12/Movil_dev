@@ -16,7 +16,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment: empathetic-patience / production
+
 
     steps:
       - name: Checkout repository
