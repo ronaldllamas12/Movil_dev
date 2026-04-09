@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from database.core.database import Base, engine
+from database.core.database import Base, get_engine
 from database.core.errors import (
     AppError,
     ForbiddenError,
@@ -59,5 +59,5 @@ def handle_not_found(_: Request, exc: NotFoundError):
     return _error_response(404, exc)
 
 
-Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=get_engine())
 app.include_router(auth_router)
