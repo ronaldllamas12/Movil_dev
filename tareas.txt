@@ -1,0 +1,7 @@
+hacer prototipo -> ok 
+
+configurar el entorno de desarrollo -> ok
+
+conectar docker, railway y github actions  conectarlos con el ci cd -> ok
+
+crear el docker, crear el docker compose, hacer despliegue en railway, en github actions pegar el padline del ci y el cd -> ok
