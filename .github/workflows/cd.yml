@@ -16,6 +16,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: RAILWAY_TOKEN
 
     steps:
       - name: Checkout repository
@@ -73,6 +74,16 @@ jobs:
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
+
+      - name: Validate Railway token
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN is not configured for this workflow."
+            echo "Add it in GitHub repository secrets or attach the job to the environment that contains it."
+            exit 1
+          fi
 
       - name: Deploy to Railway
         env:
