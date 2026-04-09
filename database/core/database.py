@@ -5,7 +5,14 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DATABASE_URL = os.getenv( "DATABASE_URL","postgresql+psycopg://postgres:admin@localhost:5433/movil_dev")
+_raw_url = os.getenv("DATABASE_URL")
+if not _raw_url:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is not set. "
+        "Please configure it with the PostgreSQL connection string."
+    )
+# Railway provides postgresql:// URLs; psycopg3 requires postgresql+psycopg://
+DATABASE_URL = _raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 class Base(DeclarativeBase):
     """Base declarativa de SQLAlchemy."""
@@ -30,5 +37,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
         db.close()
