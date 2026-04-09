@@ -16,7 +16,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: RAILWAY_TOKEN
+    environment: production
 
     steps:
       - name: Checkout repository
