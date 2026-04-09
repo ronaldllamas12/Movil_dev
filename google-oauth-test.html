@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba Google OAuth</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4efe6;
+      --panel: #fffdf8;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --accent: #0f766e;
+      --border: #d6d3d1;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 30%),
+        linear-gradient(135deg, var(--bg), #f7f7fb);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(720px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 2rem;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    input, textarea, button {
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.secondary {
+      background: #e7e5e4;
+      color: var(--ink);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 16px;
+      overflow: auto;
+      min-height: 160px;
+    }
+
+    .note {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section>
+      <h1>Prueba de Google OAuth</h1>
+      <p>Esta página obtiene el <code>id_token</code> desde Google y lo envía a tu backend en <code>/auth/google</code>.</p>
+    </section>
+
+    <section class="grid">
+      <label>
+        Google Client ID
+        <input
+          id="clientId"
+          value="41679375878-a75dquskm6eu1lk2703nh8d3rbt2d065.apps.googleusercontent.com"
+        >
+      </label>
+
+      <label>
+        Backend URL
+        <input id="backendUrl" value="http://127.0.0.1:8000">
+      </label>
+    </section>
+
+    <section class="grid">
+      <div id="googleButton"></div>
+      <div class="actions">
+        <button id="renderButton" type="button">Cargar botón Google</button>
+        <button id="meButton" type="button" class="secondary">Probar /auth/me</button>
+      </div>
+      <p class="note">Abre este archivo desde un frontend autorizado en Google Cloud Console, por ejemplo <code>http://127.0.0.1:5500</code> o <code>http://localhost:5500</code>.</p>
+    </section>
+
+    <section class="grid">
+      <label>
+        JWT del backend
+        <textarea id="jwtToken" placeholder="Aquí se guardará el access_token del backend"></textarea>
+      </label>
+
+      <label>
+        Resultado
+        <pre id="output">Esperando acción...</pre>
+      </label>
+    </section>
+  </main>
+
+  <script>
+    const clientIdInput = document.getElementById("clientId");
+    const backendUrlInput = document.getElementById("backendUrl");
+    const jwtTokenInput = document.getElementById("jwtToken");
+    const output = document.getElementById("output");
+    const googleButton = document.getElementById("googleButton");
+    const renderButton = document.getElementById("renderButton");
+    const meButton = document.getElementById("meButton");
+
+    function print(data) {
+      output.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    }
+
+    async function handleCredentialResponse(response) {
+      const backendUrl = backendUrlInput.value.trim().replace(/\/$/, "");
+
+      print({
+        message: "Token de Google recibido. Enviando al backend...",
+        googleCredentialLength: response.credential?.length ?? 0
+      });
+
+      try {
+        const res = await fetch(`${backendUrl}/auth/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token: response.credential })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          print({ status: res.status, data });
+          return;
+        }
+
+        jwtTokenInput.value = data.access_token || "";
+        print(data);
+      } catch (error) {
+        print({ error: String(error) });
+      }
+    }
+
+    function renderGoogleButton() {
+      const clientId = clientIdInput.value.trim();
+
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+        print("La librería de Google todavía no ha cargado. Espera un segundo y vuelve a intentar.");
+        return;
+      }
+
+      googleButton.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse
+      });
+      window.google.accounts.id.renderButton(googleButton, {
+        theme: "outline",
+        size: "large",
+        shape: "pill",
+        text: "signin_with",
+        width: 320
+      });
+      print("Botón de Google cargado. Inicia sesión para probar el registro/login.");
+    }
+
+    async function testMe() {
+      const backendUrl = backendUrlInput.value.trim().replace(/\/$/, "");
+      const token = jwtTokenInput.value.trim();
+
+      if (!token) {
+        print("Primero inicia sesión con Google para obtener el JWT del backend.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${backendUrl}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const data = await res.json();
+        print({ status: res.status, data });
+      } catch (error) {
+        print({ error: String(error) });
+      }
+    }
+
+    renderButton.addEventListener("click", renderGoogleButton);
+    meButton.addEventListener("click", testMe);
+    window.addEventListener("load", () => {
+      setTimeout(renderGoogleButton, 500);
+    });
+  </script>
+</body>
+</html>
