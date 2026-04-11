@@ -23,10 +23,7 @@ from database.core.security import (
     verify_hash,
 )
 
-GOOGLE_CLIENT_ID = os.getenv(
-    "GOOGLE_CLIENT_ID",
-    "41679375878-a75dquskm6eu1lk2703nh8d3rbt2d065.apps.googleusercontent.com",
-)
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # AUTENTICACIÓN
 
