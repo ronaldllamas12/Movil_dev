@@ -7,6 +7,7 @@ from sqlalchemy import JSON, Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from database.core.database import Base
+from users.constants import ALLOWED_USER_ROLES, UserRole
 
 
 class User(Base):
@@ -25,6 +26,12 @@ class User(Base):
 
     full_name: Mapped[str] = mapped_column(
         String(200),
+        nullable=False,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default=UserRole.USER.value,
         nullable=False,
     )
 
@@ -105,3 +112,10 @@ class User(Base):
         if not name:
             raise ValueError("El nombre es obligatorio.")
         return name
+
+    @validates("role")
+    def _normalize_role(self, _: str, value: str | UserRole) -> str:
+        role = value.value if isinstance(value, UserRole) else str(value).strip().lower()
+        if role not in ALLOWED_USER_ROLES:
+            raise ValueError("El rol debe ser 'usuario' o 'administrador'.")
+        return role

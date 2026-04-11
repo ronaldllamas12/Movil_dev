@@ -11,6 +11,7 @@ from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from users.constants import UserRole
 from users.models import User
 
 from database.core.errors import ForbiddenError, UnauthorizedError
@@ -83,15 +84,14 @@ def authenticate_google_user(db: Session, id_token: str) -> User:
     email = payload["email"].lower().strip()
     google_sub = str(payload["sub"])
 
-    user = db.scalar(select(User).where(User.google_sub == google_sub))
-
-    if not user:
-        user = db.scalar(select(User).where(User.email == email))
-
+    user = db.scalar(select(User).where(User.google_sub == google_sub)) or db.scalar(
+        select(User).where(User.email == email)
+    )
     if not user:
         user = User(
             email=email,
             full_name=(payload.get("name") or email.split("@")[0]).strip(),
+            role=UserRole.USER.value,
             hashed_password=None,
             auth_provider="google",
             google_sub=google_sub,
@@ -177,7 +177,13 @@ def extract_token_data(token: str) -> tuple[str, datetime]:
     return jti, expires_at
 
 
-def register_user(db: Session, email: str, password: str, full_name: str) -> User:
+def register_user(
+    db: Session,
+    email: str,
+    password: str,
+    full_name: str,
+    role: UserRole | str = UserRole.USER,
+) -> User:
     email = email.lower().strip()
 
     # Verificar si ya existe
@@ -191,6 +197,7 @@ def register_user(db: Session, email: str, password: str, full_name: str) -> Use
         email=email,
         hashed_password=hash_password(password),
         full_name=full_name,
+        role=role,
         auth_provider="local",
         google_sub=None,
         avatar_url=None,

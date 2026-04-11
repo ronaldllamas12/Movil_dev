@@ -1,6 +1,7 @@
 """Schemas para la autenticación de usuarios."""
 
 from pydantic import BaseModel, EmailStr, Field
+from users.constants import UserRole
 from users.schemas import UserResponse
 
 
@@ -47,8 +48,9 @@ class MessageResponse(BaseModel):
 class RegisterRequest(BaseModel):
     """Modelo para el registro de un nuevo usuario."""
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=200,examples=["usuario123"])
-    full_name: str = Field(..., min_length=2, max_length=200,examples=["Juan Pérez"])
+    password: str = Field(..., min_length=8, max_length=200, examples=["usuario123"])
+    full_name: str = Field(..., min_length=2, max_length=200, examples=["Juan Pérez"])
+    role: UserRole = Field(default=UserRole.USER, examples=["usuario"])
 
 
 class SetPasswordRequest(BaseModel):

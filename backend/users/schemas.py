@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from users.constants import UserRole
 
 
 class UserCreate(BaseModel):
@@ -12,6 +13,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=50)
+    role: UserRole = UserRole.USER
 
 
 class UserUpdate(BaseModel):
@@ -20,6 +22,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=200)
     password: str | None = Field(default=None, min_length=8, max_length=128)
     is_active: bool | None = None
+    role: UserRole | None = None
 
 
 class UserResponse(BaseModel):
@@ -30,6 +33,7 @@ class UserResponse(BaseModel):
     id: int
     email: EmailStr
     full_name: str
+    role: UserRole
     is_active: bool
     auth_provider: str
     google_sub: str | None = None

@@ -1,6 +1,6 @@
 """Rutas de autenticación."""
 
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_admin, get_current_user
 from auth.schemas import (
     ForgotPasswordRequest,
     GoogleLoginRequest,
@@ -24,11 +24,12 @@ from auth.services import (
 )
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
+from users.constants import UserRole
 from users.models import User
 from users.schemas import UserResponse
 
 from database.core.database import get_db
-from database.core.errors import UnauthorizedError
+from database.core.errors import ForbiddenError, UnauthorizedError
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -41,8 +42,38 @@ def register(
     db: Session = Depends(get_db),
 ) -> UserResponse:
     """Registra un nuevo usuario."""
-    user = register_user(db, payload.email, payload.password, payload.full_name)
+    if payload.role != UserRole.USER:
+        raise ForbiddenError(
+            "El registro público solo permite crear cuentas con rol usuario."
+        )
 
+    user = register_user(
+        db,
+        payload.email,
+        payload.password,
+        payload.full_name,
+        UserRole.USER,
+    )
+
+    return UserResponse.model_validate(user, from_attributes=True)
+
+
+@router.post(
+    "/admin/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+def admin_register_user(
+    payload: RegisterRequest,
+    _: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Permite a un administrador registrar usuarios con cualquier rol válido."""
+    user = register_user(
+        db,
+        payload.email,
+        payload.password,
+        payload.full_name,
+        payload.role,
+    )
     return UserResponse.model_validate(user, from_attributes=True)
 
 

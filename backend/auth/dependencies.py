@@ -4,6 +4,7 @@ from auth.services import is_token_revoked
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from users.constants import UserRole
 from users.models import User
 
 from database.core.database import get_db
@@ -50,3 +51,10 @@ def get_current_user(
         raise ForbiddenError("Usuario inactivo.")
 
     return user
+
+
+def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency para exigir que el usuario autenticado sea administrador."""
+    if current_user.role != UserRole.ADMIN.value:
+        raise ForbiddenError("Solo un administrador puede realizar esta acción.")
+    return current_user
