@@ -1,0 +1,13 @@
+requerimientos que se deben instalar para el proyecto frontend:
+- React (con Vite)
+- Tailwind CSS
+- Lucide React (para iconos)
+- React Icons (alternativa a Lucide)
+- React Router DOM (para navegación)
+
+npm create vite@latest . -- --template react
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+npm install lucide-react@latest
+npm install react-icons
+npm install react-router-dom 

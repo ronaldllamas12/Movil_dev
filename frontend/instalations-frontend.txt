@@ -8,4 +8,13 @@ npm install -D tailwindcss postcss autoprefixer
 npm install -D tailwindcss @tailwindcss/vite
 
 instalamos licide-react
-npm install lucide-react@latest
+npm install lucide-react@latest ,, --> no funciono 
+
+
+
+instalamos mejos react-icons
+npm install react-icons
+
+
+Intalamos react-router-dom
+npm install react-router-dom
