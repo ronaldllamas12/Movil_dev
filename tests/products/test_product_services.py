@@ -16,6 +16,7 @@ from products.services import (
     toggle_product_active,
     update_product,
 )
+from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -40,6 +41,7 @@ def _payload(**overrides) -> ProductCreate:
         "marca": "Samsung",
         "referencia": "REF-001",
         "nombre": "Galaxy A55",
+        "categoria": "gama media",
         "descripcion_breve": "Teléfono de gama media.",
         "cantidad_stock": 10,
         "precio_unitario": 499.99,
@@ -75,6 +77,7 @@ def test_create_product_guarda_todos_los_campos():
         assert product.marca == "Samsung"
         assert product.referencia == "REF-001"
         assert product.nombre == "Galaxy A55"
+        assert product.categoria == "gama media"
         assert product.cantidad_stock == 10
         assert float(product.precio_unitario) == 499.99
         assert product.tamano_memoria_ram == "8GB"
@@ -106,6 +109,15 @@ def test_create_product_referencia_duplicada_lanza_conflict():
             assert "referencia" in exc.message.lower()
     finally:
         db.close()
+
+
+def test_create_product_categoria_invalida_lanza_validation_error():
+    """La categoría debe ser premium, gama media o economico."""
+    try:
+        _payload(categoria="ultra")
+        assert False, "Se esperaba ValidationError"
+    except ValidationError:
+        pass
 
 
 # ──────────────────────────────────────────────

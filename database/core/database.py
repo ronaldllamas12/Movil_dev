@@ -143,6 +143,12 @@ def ensure_products_new_columns(engine: Engine) -> None:
     if "imagen_url" not in columns:
         statements.append("ALTER TABLE products ADD COLUMN imagen_url VARCHAR(500)")
 
+    if "categoria" not in columns:
+        statements.append(
+            "ALTER TABLE products "
+            "ADD COLUMN categoria VARCHAR(20) NOT NULL DEFAULT 'economico'"
+        )
+
     if not statements:
         return
 

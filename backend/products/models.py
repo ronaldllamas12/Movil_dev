@@ -2,7 +2,16 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, Numeric, String, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Integer,
+    Numeric,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.core.database import Base
@@ -12,6 +21,12 @@ class Product(Base):
     """Representa un producto del catálogo."""
 
     __tablename__ = "products"
+    __table_args__ = (
+        CheckConstraint(
+            "categoria IN ('premium', 'gama media', 'economico')",
+            name="ck_products_categoria",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     marca: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -19,6 +34,7 @@ class Product(Base):
         String(100), nullable=False, unique=True, index=True
     )
     nombre: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    categoria: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
 
     descripcion_breve: Mapped[str] = mapped_column(String(500), nullable=False)
 

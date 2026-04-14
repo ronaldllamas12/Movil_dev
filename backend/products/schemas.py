@@ -1,8 +1,11 @@
 """Schemas Pydantic para el dominio de productos."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+ProductCategory = Literal["premium", "gama media", "economico"]
 
 
 class ProductBase(BaseModel):
@@ -11,6 +14,7 @@ class ProductBase(BaseModel):
     marca: str = Field(..., min_length=1, max_length=100)
     referencia: str = Field(..., min_length=1, max_length=100)
     nombre: str = Field(..., min_length=1, max_length=200)
+    categoria: ProductCategory
     descripcion_breve: str = Field(..., min_length=1, max_length=500)
     cantidad_stock: int = Field(..., ge=0)
     precio_unitario: float = Field(..., ge=0)
@@ -39,6 +43,7 @@ class ProductUpdate(BaseModel):
     marca: str | None = Field(default=None, min_length=1, max_length=100)
     referencia: str | None = Field(default=None, min_length=1, max_length=100)
     nombre: str | None = Field(default=None, min_length=1, max_length=200)
+    categoria: ProductCategory | None = None
     descripcion_breve: str | None = Field(default=None, min_length=1, max_length=500)
     cantidad_stock: int | None = Field(default=None, ge=0)
     precio_unitario: float | None = Field(default=None, ge=0)
