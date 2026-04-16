@@ -1,8 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
 import { MdEmail, MdPhone, MdLocationOn } from 'react-icons/md';
 
-
 export default function Footer() {
+  const navigate = useNavigate();
   return (
     <footer className="w-full bg-[#0f172a] text-white pt-16 pb-8 px-6">
       <div className="max-w-7xl mx-auto">
@@ -29,11 +30,10 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-bold mb-6">Enlaces Rápidos</h4>
             <ul className="space-y-4 text-gray-400 text-sm">
-              {/* ajustar para que navegue a cada categoria */}
-              <li className="hover:text-white cursor-pointer" onClick={() => window.location.href = '/catalogo'}>Catálogo</li>
-              <li className="hover:text-white cursor-pointer" onClick={() => window.location.href = '/catalogo/premium'}>Premium</li>
-              <li className="hover:text-white cursor-pointer" onClick={() => window.location.href = '/catalogo/gama-media'}>Gama Media</li>
-              <li className="hover:text-white cursor-pointer" onClick={() => window.location.href = '/catalogo/economicos'}>Economicos</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/catalogo')}>Catálogo</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/catalogo/premium')}>Premium</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/catalogo/gama-media')}>Gama Media</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/catalogo/economicos')}>Economicos</li>
             </ul>
           </div>
 

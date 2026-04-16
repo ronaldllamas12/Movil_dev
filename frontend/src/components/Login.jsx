@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, User, CheckSquare } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useCarrito } from '../context/CarritoContext';
 
 export default function Login() {
@@ -9,9 +9,11 @@ export default function Login() {
   const [activeTab, setActiveTab] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleLogin = (event) => {
     event.preventDefault();
@@ -87,14 +89,21 @@ export default function Login() {
                     <div className="mt-2 relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="********"
                         className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
                         required
                       />
-                      <Eye className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? <EyeOff /> : <Eye />}
+                      </button>
                     </div>
                   </label>
                 </div>
@@ -164,14 +173,21 @@ export default function Login() {
                     <div className="mt-2 relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="********"
                         className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
                         required
                       />
-                      <Eye className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? <EyeOff /> : <Eye />}
+                      </button>
                     </div>
                   </label>
 
@@ -180,14 +196,21 @@ export default function Login() {
                     <div className="mt-2 relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
                       <input
-                        type="password"
+                        type={showConfirmPassword ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="********"
                         className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
                         required
                       />
-                      <Eye className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
+                        aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                      </button>
                     </div>
                   </label>
                 </div>

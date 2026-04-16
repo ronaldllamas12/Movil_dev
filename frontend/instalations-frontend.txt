@@ -1,18 +1,18 @@
-//iniciar react con vite, en la carpeta frontend ejecutar el siguiente comando:
+ //iniciar react con vite, en la carpeta frontend ejecutar el siguiente comando:
 npm create vite@latest . -- --template react
-
--- instalar tailwind
-npm install -D tailwindcss postcss autoprefixer
 
 -- generamos archivo de configuración de tailwind
 npm install -D tailwindcss @tailwindcss/vite
 
+instalamos lucide-react
+
+npm install -D tailwindcss @tailwindcss/vite
+
 instalamos licide-react
-npm install lucide-react@latest ,, --> no funciono 
+npm install lucide-react@latest
 
+instalamos mejor react-icons
 
-
-instalamos mejos react-icons
 npm install react-icons
 
 
