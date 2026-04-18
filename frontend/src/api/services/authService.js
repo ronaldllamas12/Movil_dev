@@ -71,3 +71,20 @@ export async function uploadAvatar(file) {
 
   return response.data;
 }
+
+export async function forgotPassword(email) {
+  const response = await apiClient.post('/auth/forgot-password', {
+    email,
+  });
+
+  return response.data;
+}
+
+export async function resetPassword({ token, newPassword }) {
+  const response = await apiClient.post('/auth/reset-password', {
+    token,
+    new_password: newPassword,
+  });
+
+  return response.data;
+}

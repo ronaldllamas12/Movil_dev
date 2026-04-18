@@ -1,8 +1,14 @@
-import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/axiosClient';
-import { loginUser, loginWithGoogle, registerUser } from '../api/services/authService';
+import {
+    forgotPassword,
+    loginUser,
+    loginWithGoogle,
+    registerUser,
+    resetPassword,
+} from '../api/services/authService';
 import { useCarrito } from '../context/CarritoContext';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -11,6 +17,7 @@ const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useCarrito();
+  const [authView, setAuthView] = useState('tabs');
   const [activeTab, setActiveTab] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,10 +26,20 @@ export default function Login() {
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
+  const [resetSuccessMsg, setResetSuccessMsg] = useState('');
+  const [googleScriptError, setGoogleScriptError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const googleButtonRef = useRef(null);
   const googleInitializedRef = useRef(false);
+  const isGoogleEnabled = Boolean(GOOGLE_CLIENT_ID);
 
   const handleGoogleCredential = async (response) => {
     setIsSubmitting(true);
@@ -61,7 +78,7 @@ export default function Login() {
       googleInitializedRef.current = true;
     };
 
-    if (!GOOGLE_CLIENT_ID) {
+    if (!isGoogleEnabled) {
       return undefined;
     }
 
@@ -88,12 +105,15 @@ export default function Login() {
     script.async = true;
     script.defer = true;
     script.addEventListener('load', handleScriptLoad);
+    script.addEventListener('error', () => {
+      setGoogleScriptError('No se pudo cargar Google Sign-In. Verifica la configuración en producción.');
+    });
     document.head.appendChild(script);
 
     return () => {
       script.removeEventListener('load', handleScriptLoad);
     };
-  }, []);
+  }, [isGoogleEnabled]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -133,6 +153,68 @@ export default function Login() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMsg('');
+    setForgotSuccessMsg('');
+
+    try {
+      const response = await forgotPassword(forgotEmail);
+      const message = response?.message || 'Solicitud procesada.';
+      setForgotSuccessMsg(message);
+
+      const tokenMatch = message.match(/([a-f0-9]{32,})$/i);
+      if (tokenMatch?.[1]) {
+        setResetToken(tokenMatch[1]);
+      }
+
+      setAuthView('reset');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMsg('');
+    setResetSuccessMsg('');
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      setIsSubmitting(false);
+      setErrorMsg('Las contraseñas no coinciden.');
+      return;
+    }
+
+    try {
+      const response = await resetPassword({
+        token: resetToken,
+        newPassword: resetNewPassword,
+      });
+      setResetSuccessMsg(response?.message || 'Contraseña actualizada correctamente.');
+      setAuthView('tabs');
+      setActiveTab('login');
+      setPassword('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+      setResetToken('');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const goBackToAuthTabs = () => {
+    setAuthView('tabs');
+    setErrorMsg('');
+    setForgotSuccessMsg('');
+    setResetSuccessMsg('');
   };
 
   return (
@@ -179,7 +261,19 @@ export default function Login() {
               </p>
             )}
 
-            {activeTab === 'login' ? (
+            {forgotSuccessMsg && authView === 'forgot' && (
+              <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+                {forgotSuccessMsg}
+              </p>
+            )}
+
+            {resetSuccessMsg && authView === 'reset' && (
+              <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+                {resetSuccessMsg}
+              </p>
+            )}
+
+            {authView === 'tabs' && activeTab === 'login' ? (
               <form onSubmit={handleLogin} className="mx-auto max-w-md space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-[color:var(--text)]">Iniciar Sesión</h2>
@@ -236,7 +330,16 @@ export default function Login() {
                     />
                     Recordarme
                   </label>
-                  <button type="button" className="text-purple-600 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthView('forgot');
+                      setForgotEmail(email);
+                      setErrorMsg('');
+                      setForgotSuccessMsg('');
+                    }}
+                    className="text-purple-600 hover:underline"
+                  >
                     ¿Olvidaste tu contraseña?
                   </button>
                 </div>
@@ -256,10 +359,22 @@ export default function Login() {
                 </div>
 
                 <div className="flex justify-center">
-                  <div ref={googleButtonRef} className="min-h-10" />
+                  {isGoogleEnabled ? <div ref={googleButtonRef} className="min-h-10" /> : null}
                 </div>
+
+                {!isGoogleEnabled ? (
+                  <p className="text-center text-xs text-amber-700">
+                    Google Sign-In no está disponible: falta la variable VITE_GOOGLE_CLIENT_ID en el entorno de producción.
+                  </p>
+                ) : null}
+
+                {googleScriptError ? (
+                  <p className="text-center text-xs text-red-700">{googleScriptError}</p>
+                ) : null}
               </form>
-            ) : (
+            ) : null}
+
+            {authView === 'tabs' && activeTab === 'register' ? (
               <form onSubmit={handleRegister} className="mx-auto max-w-lg space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-[color:var(--text)]">Crear Cuenta</h2>
@@ -352,7 +467,136 @@ export default function Login() {
                   {isSubmitting ? 'Procesando...' : 'Crear cuenta'}
                 </button>
               </form>
-            )}
+            ) : null}
+
+            {authView === 'forgot' ? (
+              <form onSubmit={handleForgotPassword} className="mx-auto max-w-md space-y-6">
+                <button
+                  type="button"
+                  onClick={goBackToAuthTabs}
+                  className="inline-flex items-center gap-2 text-sm text-[color:var(--muted)] hover:text-[color:var(--text)]"
+                >
+                  <ArrowLeft className="size-4" />
+                  Volver
+                </button>
+
+                <div>
+                  <h2 className="text-2xl font-bold text-[color:var(--text)]">Recuperar contraseña</h2>
+                  <p className="mt-2 text-sm text-[color:var(--muted)]">
+                    Ingresa tu correo para generar un token de recuperación.
+                  </p>
+                </div>
+
+                <label className="block text-sm font-medium text-[color:var(--text)]">
+                  Email
+                  <div className="mt-2 relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                    <input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="tu@email.com"
+                      className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                      required
+                    />
+                  </div>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  {isSubmitting ? 'Procesando...' : 'Generar token'}
+                </button>
+              </form>
+            ) : null}
+
+            {authView === 'reset' ? (
+              <form onSubmit={handleResetPassword} className="mx-auto max-w-md space-y-6">
+                <button
+                  type="button"
+                  onClick={goBackToAuthTabs}
+                  className="inline-flex items-center gap-2 text-sm text-[color:var(--muted)] hover:text-[color:var(--text)]"
+                >
+                  <ArrowLeft className="size-4" />
+                  Volver
+                </button>
+
+                <div>
+                  <h2 className="text-2xl font-bold text-[color:var(--text)]">Restablecer contraseña</h2>
+                  <p className="mt-2 text-sm text-[color:var(--muted)]">
+                    Usa el token de recuperación y define una nueva contraseña.
+                  </p>
+                </div>
+
+                <label className="block text-sm font-medium text-[color:var(--text)]">
+                  Token de recuperación
+                  <input
+                    type="text"
+                    value={resetToken}
+                    onChange={(e) => setResetToken(e.target.value)}
+                    placeholder="Pega aquí tu token"
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 px-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                    required
+                  />
+                </label>
+
+                <label className="block text-sm font-medium text-[color:var(--text)]">
+                  Nueva contraseña
+                  <div className="mt-2 relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                    <input
+                      type={showResetPassword ? 'text' : 'password'}
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      placeholder="********"
+                      className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetPassword((prev) => !prev)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
+                      aria-label={showResetPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showResetPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="block text-sm font-medium text-[color:var(--text)]">
+                  Confirmar nueva contraseña
+                  <div className="mt-2 relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+                    <input
+                      type={showResetConfirmPassword ? 'text' : 'password'}
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      placeholder="********"
+                      className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirmPassword((prev) => !prev)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
+                      aria-label={showResetConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showResetConfirmPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  {isSubmitting ? 'Procesando...' : 'Actualizar contraseña'}
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
       </div>

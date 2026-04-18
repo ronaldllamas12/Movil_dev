@@ -1,6 +1,7 @@
 import { Loader2, Pencil, Plus, Power, Settings2, Shield, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCartTaxSettings, updateCartTaxSettings } from '../api/services/cartService';
 import {
     createProduct,
     deleteProduct,
@@ -328,6 +329,25 @@ export default function AdminDashboard() {
       navigate('/perfil', { replace: true });
     }
   }, [isAdmin, isAuthLoading, isLoggedIn, navigate]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
+    const loadTaxSettings = async () => {
+      try {
+        const settings = await getCartTaxSettings();
+        const nextTaxRate = Number(settings?.tax_percent ?? cartSettings.taxRate);
+        updateCartSettings({ taxRate: nextTaxRate });
+        setTaxRateInput(String(nextTaxRate));
+      } catch {
+        // El dashboard puede seguir usando el valor ya sincronizado en contexto.
+      }
+    };
+
+    loadTaxSettings();
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) {
