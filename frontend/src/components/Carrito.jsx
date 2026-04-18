@@ -1,5 +1,5 @@
+import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCarrito } from '../context/CarritoContext';
 
@@ -10,12 +10,25 @@ export default function Carrito() {
     carrito, 
     eliminarDelCarrito, 
     actualizarCantidad, 
+    isCartLoading,
+    cartError,
     subtotal, 
+    descuentoTotal,
+    subtotalConDescuento,
     costoEnvio, 
     iva, 
     total,
+    cartTaxPercent,
     isLoggedIn
   } = useCarrito();
+
+  if (isCartLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-20 text-center">
+        <h2 className="text-2xl font-bold text-slate-800">Cargando carrito...</h2>
+      </div>
+    );
+  }
 
   if (carrito.length === 0) {
     return (
@@ -26,6 +39,9 @@ export default function Carrito() {
           </div>
         </div>
         <h2 className="text-3xl font-bold text-slate-800 mb-4">Tu carrito está vacío</h2>
+        {cartError ? (
+          <p className="text-red-500 mb-4">{cartError}</p>
+        ) : null}
         <p className="text-gray-500 mb-8">Parece que aún no has añadido ningún producto.</p>
         <Link to="/catalogo" className="inline-flex items-center gap-2 bg-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-purple-700 transition">
           <ArrowLeft className="size-5" />
@@ -38,6 +54,9 @@ export default function Carrito() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold text-slate-800 mb-8">Mi Carrito ({carrito.length})</h1>
+      {cartError ? (
+        <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{cartError}</p>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
@@ -53,7 +72,11 @@ export default function Carrito() {
               
               <div className="flex-1">
                 <h3 className="font-bold text-slate-800 text-lg">{item.nombre}</h3>
-                <p className="text-purple-600 font-bold">${item.precio.toLocaleString()}</p>
+                {item.referencia ? (
+                  <p className="text-xs text-slate-500">Ref: {item.referencia}</p>
+                ) : null}
+                <p className="text-purple-600 font-bold">$ {item.precio.toLocaleString()
+                }</p>
               </div>
 
               {/* Controles de Cantidad */}
@@ -94,6 +117,18 @@ export default function Carrito() {
               <span>Subtotal</span>
               <span className="text-white font-medium">${subtotal.toLocaleString()}</span>
             </div>
+            {descuentoTotal > 0 && (
+              <div className="flex justify-between">
+                <span>Descuentos</span>
+                <span className="text-green-400 font-medium">-${descuentoTotal.toLocaleString()}</span>
+              </div>
+            )}
+            {descuentoTotal > 0 && (
+              <div className="flex justify-between">
+                <span>Subtotal con descuento</span>
+                <span className="text-white font-medium">${subtotalConDescuento.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Envío</span>
               <span className={costoEnvio === 0 ? "text-green-400 font-medium" : "text-white font-medium"}>
@@ -101,7 +136,7 @@ export default function Carrito() {
               </span>
             </div>
             <div className="flex justify-between border-b border-slate-800 pb-4">
-              <span>IVA (21%)</span>
+              <span>IVA ({cartTaxPercent}%)</span>
               <span className="text-white font-medium">${iva.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-xl font-bold text-white pt-2">

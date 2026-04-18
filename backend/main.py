@@ -9,6 +9,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from auth.router import router as auth_router
+from cart.models import CartItem
+from cart.router import router as cart_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -87,3 +89,4 @@ ensure_user_role_column(engine)
 ensure_products_new_columns(engine)
 app.include_router(auth_router)
 app.include_router(products_router)
+app.include_router(cart_router)

@@ -13,6 +13,7 @@ from database.core.security import decode_token, is_jwt_error
 
 # USUARIO ACTUAL (DEPENDENCY)
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
@@ -58,3 +59,37 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.ADMIN.value:
         raise ForbiddenError("Solo un administrador puede realizar esta acción.")
     return current_user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Obtiene el usuario autenticado si existe token válido, de lo contrario None."""
+    if credentials is None or not credentials.credentials:
+        return None
+
+    token = credentials.credentials
+
+    try:
+        payload = decode_token(token)
+    except Exception as exc:
+        if is_jwt_error(exc):
+            return None
+        raise
+
+    jti = payload.get("jti")
+    sub = payload.get("sub")
+
+    if not jti or not sub:
+        return None
+
+    if is_token_revoked(db, jti):
+        return None
+
+    user = db.get(User, int(sub))
+    if not user or not user.is_active:
+        return None
+
+    return user
+    return user

@@ -1,13 +1,14 @@
+import { LogOut, Menu, Moon, Search, ShoppingCart, Sun, User, X } from 'lucide-react';
 import { useState } from 'react';
-import { Search, ShoppingCart, User, Moon, Sun, Menu, X } from 'lucide-react';
-import { NavLink, Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useCarrito } from '../context/CarritoContext';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { carrito, isLoggedIn } = useCarrito(); 
+  const { carrito, isLoggedIn, logout, currentUser } = useCarrito(); 
   const { theme, toggleTheme } = useTheme();
+  const isAdmin = currentUser?.role === 'administrador';
   
   // Calculamos el total de productos para el badge
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0);
@@ -77,6 +78,17 @@ export default function Navbar() {
           >
             Económicos
           </NavLink>
+
+          {isLoggedIn && isAdmin && (
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                `transition ${isActive ? 'text-purple-600 border-b-2 border-purple-600' : 'text-slate-600 hover:text-purple-600'}`
+              }
+            >
+              Dashboard
+            </NavLink>
+          )}
         </div>
 
         {/* Buscador */}
@@ -123,13 +135,25 @@ export default function Navbar() {
 
           {/* Botón de Usuario */}
           <Link
-            to={isLoggedIn ? "/carrito" : "/login"}
+            to={isLoggedIn ? '/perfil' : '/login'}
             className="flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text)] px-5 py-2 font-medium transition hover:bg-[color:var(--surface-muted)]"
-            aria-label={isLoggedIn ? "Ver carrito" : "Iniciar sesión"}
+            aria-label={isLoggedIn ? 'Ver perfil' : 'Iniciar sesión'}
           >
             <User className="size-5" />
-            <span className="hidden md:inline">{isLoggedIn ? "Mi Perfil" : "Ingresar"}</span>
+            <span className="hidden md:inline">{isLoggedIn ? 'Mi Perfil' : 'Ingresar'}</span>
           </Link>
+
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={logout}
+              className="hidden sm:flex items-center gap-2 rounded-full border border-red-200 bg-red-50 text-red-700 px-4 py-2 font-medium transition hover:bg-red-100"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="size-4" />
+              <span className="hidden md:inline">Salir</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -192,6 +216,17 @@ export default function Navbar() {
           >
             Económicos
           </NavLink>
+          {isLoggedIn && isAdmin && (
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                `block rounded-2xl px-4 py-3 transition ${isActive ? 'bg-purple-600 text-white' : 'text-[color:var(--text)] hover:bg-[color:var(--surface-muted)]'}`
+              }
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Dashboard
+            </NavLink>
+          )}
         </div>
       </div>
     </nav>

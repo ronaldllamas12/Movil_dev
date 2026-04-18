@@ -1,7 +1,6 @@
 // import { useEffect } from 'react';
-import { Filter, ChevronDown } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom'; // Importamos hooks de ruta
-import ProductCard from './ProductCard';
+import { ChevronDown, Filter } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom'; // Importamos hooks de ruta
 
 export default function Catalogo() {
   // 1. Extraemos la categoría de la URL (ej: /catalogo/premium)

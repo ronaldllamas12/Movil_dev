@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { getApiErrorMessage } from '../api/axiosClient';
+import { loginUser, loginWithGoogle, registerUser } from '../api/services/authService';
 import { useCarrito } from '../context/CarritoContext';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setIsLoggedIn } = useCarrito();
+  const { login } = useCarrito();
   const [activeTab, setActiveTab] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,35 +19,142 @@ export default function Login() {
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const googleButtonRef = useRef(null);
+  const googleInitializedRef = useRef(false);
 
-  const handleLogin = (event) => {
-    event.preventDefault();
-    setIsLoggedIn(true);
-    navigate('/');
+  const handleGoogleCredential = async (response) => {
+    setIsSubmitting(true);
+    setErrorMsg('');
+
+    try {
+      const data = await loginWithGoogle(response.credential);
+      login(data.user);
+      navigate('/');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRegister = (event) => {
+  useEffect(() => {
+    const initializeGoogleButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current || googleInitializedRef.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+      });
+
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        text: 'signin_with',
+        width: 360,
+      });
+
+      googleInitializedRef.current = true;
+    };
+
+    if (!GOOGLE_CLIENT_ID) {
+      return undefined;
+    }
+
+    const existingScript = document.querySelector(`script[src="${GOOGLE_SCRIPT_SRC}"]`);
+
+    const handleScriptLoad = () => {
+      initializeGoogleButton();
+    };
+
+    if (existingScript) {
+      if (window.google?.accounts?.id) {
+        initializeGoogleButton();
+      } else {
+        existingScript.addEventListener('load', handleScriptLoad);
+      }
+
+      return () => {
+        existingScript.removeEventListener('load', handleScriptLoad);
+      };
+    }
+
+    const script = document.createElement('script');
+    script.src = GOOGLE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', handleScriptLoad);
+    document.head.appendChild(script);
+
+    return () => {
+      script.removeEventListener('load', handleScriptLoad);
+    };
+  }, []);
+
+  const handleLogin = async (event) => {
     event.preventDefault();
-    setIsLoggedIn(true);
-    navigate('/');
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+
+    try {
+      const data = await loginUser({ email, password });
+      login(data.user);
+      navigate('/');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRegister = async (event) => {
+    event.preventDefault();
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Las contrasenas no coinciden.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+
+    try {
+      await registerUser({ email, password, fullName: name });
+      const data = await loginUser({ email, password });
+      login(data.user);
+      navigate('/');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-[color:var(--bg)] text-[color:var(--text)] px-4 py-10 flex items-start justify-center">
-      <div className="w-full max-w-5xl">
-        <div className="flex flex-col items-center gap-4 mb-10">
+    <div className="min-h-[calc(100vh-80px)] bg-[color:var(--bg)] text-[color:var(--text)] px-4 py-10 md:py-14 flex items-center justify-center">
+      <div className="w-full max-w-2xl">
+        <div className="flex flex-col items-center gap-4 mb-8">
           <div className="inline-flex items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-blue-600 to-purple-600 w-16 h-16 text-white font-bold text-xl shadow-xl">
             MD
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-bold">Móvil Dev</h1>
-            <p className="mt-2 text-sm text-[color:var(--muted)] max-w-xl mx-auto">
+            <p className="mt-2 text-sm text-[color:var(--muted)] max-w-md mx-auto">
               Inicia sesión para seguir con tu compra y acceder a tus pedidos, descuentos y favoritos.
             </p>
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl overflow-hidden">
+        <div
+          className={`mx-auto w-full rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl overflow-hidden transition-all duration-300 ${
+            activeTab === 'login' ? 'max-w-lg' : 'max-w-xl'
+          }`}
+        >
           <div className="flex bg-[color:var(--surface-muted)] p-2 gap-2">
             <button
               type="button"
@@ -60,9 +172,15 @@ export default function Login() {
             </button>
           </div>
 
-          <div className="p-8 md:p-10">
+          <div className="p-6 md:p-8">
+            {errorMsg && (
+              <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                {errorMsg}
+              </p>
+            )}
+
             {activeTab === 'login' ? (
-              <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleLogin} className="mx-auto max-w-md space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-[color:var(--text)]">Iniciar Sesión</h2>
                   <p className="mt-2 text-sm text-[color:var(--muted)]">Ingresa tus credenciales para acceder a tu cuenta</p>
@@ -125,13 +243,24 @@ export default function Login() {
 
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Iniciar Sesión
+                  {isSubmitting ? 'Procesando...' : 'Iniciar Sesion'}
                 </button>
+
+                <div className="flex items-center gap-3 text-xs text-[color:var(--muted)]">
+                  <span className="h-px flex-1 bg-[color:var(--border)]" />
+                  o
+                  <span className="h-px flex-1 bg-[color:var(--border)]" />
+                </div>
+
+                <div className="flex justify-center">
+                  <div ref={googleButtonRef} className="min-h-10" />
+                </div>
               </form>
             ) : (
-              <form onSubmit={handleRegister} className="space-y-6">
+              <form onSubmit={handleRegister} className="mx-auto max-w-lg space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-[color:var(--text)]">Crear Cuenta</h2>
                   <p className="mt-2 text-sm text-[color:var(--muted)]">Regístrate para comenzar a comprar celulares y guardar tus favoritos.</p>
@@ -217,9 +346,10 @@ export default function Login() {
 
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Crear cuenta
+                  {isSubmitting ? 'Procesando...' : 'Crear cuenta'}
                 </button>
               </form>
             )}

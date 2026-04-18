@@ -22,7 +22,8 @@ from auth.services import (
     revoke_token,
     set_user_password,
 )
-from fastapi import APIRouter, Depends, Request, status
+from cloudinary_utils import upload_image_to_cloudinary
+from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.orm import Session
 from users.constants import UserRole
 from users.models import User
@@ -145,6 +146,23 @@ def add_or_change_password(
         payload.current_password,
     )
     return UserResponse.model_validate(updated_user, from_attributes=True)
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sube avatar del usuario a Cloudinary y guarda la URL en su perfil."""
+    upload_result = await upload_image_to_cloudinary(file, folder="movil-dev/avatars")
+
+    user.avatar_url = upload_result["url"]
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return UserResponse.model_validate(user, from_attributes=True)
 
 
 # LOGOUT
