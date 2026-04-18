@@ -25,3 +25,16 @@ export async function toggleProductStatus(productId, isActive) {
   });
   return response.data;
 }
+
+export async function uploadProductImage(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post('/products/upload-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data;
+}

@@ -7,7 +7,8 @@ import {
     deleteProduct,
     getProducts,
     toggleProductStatus,
-    updateProduct
+    updateProduct,
+    uploadProductImage,
 } from '../api/services/productsService';
 import { useCarrito } from '../context/CarritoContext';
 
@@ -297,6 +298,8 @@ export default function AdminDashboard() {
   const [createForm, setCreateForm] = useState(BASE_CREATE_FORM);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(BASE_EDIT_FORM);
+  const [isUploadingCreateImage, setIsUploadingCreateImage] = useState(false);
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
 
   const [taxRateInput, setTaxRateInput] = useState(String(cartSettings.taxRate));
   const [selectedDiscountReference, setSelectedDiscountReference] = useState('');
@@ -399,6 +402,77 @@ export default function AdminDashboard() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const uploadImageAndSetForm = async ({ file, setForm, setUploading, persistImageUrl }) => {
+    if (!file) {
+      return;
+    }
+
+    setUploading(true);
+    resetMessages();
+
+    try {
+      const uploaded = await uploadProductImage(file);
+      const imageUrl = String(uploaded?.url || '').trim();
+
+      if (!imageUrl) {
+        setErrorMsg('Cloudinary no devolvió una URL válida para la imagen.');
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        imagen_url: imageUrl,
+      }));
+
+      if (persistImageUrl) {
+        await persistImageUrl(imageUrl);
+        setSuccessMsg('Imagen subida a Cloudinary y guardada automáticamente en la base de datos.');
+        return;
+      }
+
+      setSuccessMsg('Imagen subida correctamente a Cloudinary.');
+    } catch (error) {
+      setErrorMsg(error?.response?.data?.detail || 'No se pudo subir la imagen a Cloudinary.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCreateImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    await uploadImageAndSetForm({
+      file,
+      setForm: setCreateForm,
+      setUploading: setIsUploadingCreateImage,
+    });
+    event.target.value = '';
+  };
+
+  const handleEditImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+
+    const persistEditImageUrl = async (imageUrl) => {
+      if (!editingId) {
+        return;
+      }
+
+      const updated = await updateProduct(editingId, {
+        imagen_url: imageUrl,
+      });
+
+      setProducts((prev) => prev.map((item) => (item.id === editingId ? updated : item)));
+      setEditForm(productToEditForm(updated));
+    };
+
+    await uploadImageAndSetForm({
+      file,
+      setForm: setEditForm,
+      setUploading: setIsUploadingEditImage,
+      persistImageUrl: persistEditImageUrl,
+    });
+    event.target.value = '';
   };
 
   const handleCreateProduct = async (event) => {
@@ -679,9 +753,30 @@ export default function AdminDashboard() {
           Crear producto
         </div>
         <ProductFields form={createForm} onChange={handleFormInput(setCreateForm)} />
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <p className="text-sm font-medium text-slate-800">Subir imagen de producto a Cloudinary</p>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleCreateImageUpload}
+            disabled={isSaving || isUploadingCreateImage}
+            className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+          {isUploadingCreateImage ? (
+            <p className="text-sm text-slate-600 inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              Subiendo imagen...
+            </p>
+          ) : null}
+          {createForm.imagen_url ? (
+            <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {createForm.imagen_url}</p>
+          ) : null}
+        </div>
+
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={isSaving || isUploadingCreateImage}
           className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700 disabled:opacity-60"
         >
           {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -705,9 +800,30 @@ export default function AdminDashboard() {
             </button>
           </div>
           <ProductFields form={editForm} onChange={handleFormInput(setEditForm)} />
+
+          <div className="rounded-2xl border border-blue-200 bg-white p-4 space-y-3">
+            <p className="text-sm font-medium text-slate-800">Subir nueva imagen a Cloudinary</p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleEditImageUpload}
+              disabled={isSaving || isUploadingEditImage}
+              className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+            {isUploadingEditImage ? (
+              <p className="text-sm text-slate-600 inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Subiendo imagen...
+              </p>
+            ) : null}
+            {editForm.imagen_url ? (
+              <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {editForm.imagen_url}</p>
+            ) : null}
+          </div>
+
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || isUploadingEditImage}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-500 disabled:opacity-60"
           >
             {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}

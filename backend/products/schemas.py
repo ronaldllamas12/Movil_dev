@@ -78,3 +78,11 @@ class ProductResponse(ProductBase):
     id: int
     created_at: datetime
     updated_at: datetime | None = None
+
+
+class ProductImageUploadResponse(BaseModel):
+    """Respuesta de subida de imagen de producto."""
+
+    url: str
+    public_id: str | None = None
+    format: str | None = None

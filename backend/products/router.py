@@ -1,8 +1,14 @@
 """Rutas REST para la gestión de productos."""
 
 from auth.dependencies import get_current_admin
-from fastapi import APIRouter, Depends, Query, status
-from products.schemas import ProductCreate, ProductResponse, ProductUpdate
+from cloudinary_utils import upload_image_to_cloudinary
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from products.schemas import (
+    ProductCreate,
+    ProductImageUploadResponse,
+    ProductResponse,
+    ProductUpdate,
+)
 from products.services import (
     create_product,
     delete_product,
@@ -17,6 +23,20 @@ from users.models import User
 from database.core.database import get_db
 
 router = APIRouter(prefix="/products", tags=["Products"])
+
+
+@router.post("/upload-image", response_model=ProductImageUploadResponse)
+async def upload_product_image(
+    file: UploadFile = File(...),
+    _: User = Depends(get_current_admin),
+) -> ProductImageUploadResponse:
+    """Sube una imagen de producto a Cloudinary. Solo administradores."""
+    upload_result = await upload_image_to_cloudinary(file, folder="movil-dev/products")
+    return ProductImageUploadResponse(
+        url=upload_result.get("url") or "",
+        public_id=upload_result.get("public_id"),
+        format=upload_result.get("format"),
+    )
 
 
 @router.get("", response_model=list[ProductResponse])
