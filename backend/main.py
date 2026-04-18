@@ -84,10 +84,15 @@ def handle_conflict(_: Request, exc: ConflictError):
     return _error_response(409, exc)
 
 
-engine = get_engine()
-Base.metadata.create_all(bind=engine)
-ensure_user_role_column(engine)
-ensure_products_new_columns(engine)
+@app.on_event("startup")
+async def startup_db() -> None:
+    """Inicializa la base de datos al arrancar la aplicación."""
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    ensure_user_role_column(engine)
+    ensure_products_new_columns(engine)
+
+
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
