@@ -1,6 +1,7 @@
 """Rutas de autenticación."""
 
 from auth.dependencies import get_current_admin, get_current_user
+from auth.email_service import send_password_reset_email
 from auth.schemas import (
     ForgotPasswordRequest,
     GoogleLoginRequest,
@@ -110,9 +111,16 @@ def forgot_password(
     payload: ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ):
-    """Genera un token temporal para recuperación de contraseña."""
-    token = create_password_reset_token(db, payload.email)
-    return MessageResponse(message=f"Token de recuperación generado: {token}")
+    """Genera token y envía enlace por correo sin revelar si el email existe."""
+    generic_message = "Si el correo está registrado, enviaremos un enlace para restablecer la contraseña."
+
+    try:
+        token = create_password_reset_token(db, payload.email)
+        send_password_reset_email(recipient_email=payload.email, token=token)
+    except UnauthorizedError:
+        return MessageResponse(message=generic_message)
+
+    return MessageResponse(message=generic_message)
 
 
 @router.post("/reset-password", response_model=MessageResponse)

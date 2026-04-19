@@ -1,13 +1,13 @@
 import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/axiosClient';
 import {
-    forgotPassword,
-    loginUser,
-    loginWithGoogle,
-    registerUser,
-    resetPassword,
+  forgotPassword,
+  loginUser,
+  loginWithGoogle,
+  registerUser,
+  resetPassword,
 } from '../api/services/authService';
 import { useCarrito } from '../context/CarritoContext';
 
@@ -16,6 +16,7 @@ const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useCarrito();
   const [authView, setAuthView] = useState('tabs');
   const [activeTab, setActiveTab] = useState('login');
@@ -55,6 +56,21 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tokenFromLink = params.get('token');
+
+    if (!tokenFromLink) {
+      return;
+    }
+
+    setResetToken(tokenFromLink);
+    setAuthView('reset');
+    setErrorMsg('');
+    setForgotSuccessMsg('');
+    setResetSuccessMsg('');
+  }, [location.search]);
 
   useEffect(() => {
     const initializeGoogleButton = () => {
@@ -169,13 +185,6 @@ export default function Login() {
       const response = await forgotPassword(forgotEmail);
       const message = response?.message || 'Solicitud procesada.';
       setForgotSuccessMsg(message);
-
-      const tokenMatch = message.match(/([a-f0-9]{32,})$/i);
-      if (tokenMatch?.[1]) {
-        setResetToken(tokenMatch[1]);
-      }
-
-      setAuthView('reset');
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
     } finally {
