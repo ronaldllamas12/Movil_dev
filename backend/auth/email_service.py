@@ -83,15 +83,25 @@ def send_password_reset_email(*, recipient_email: str, token: str) -> None:
 
     try:
         print(f"[EMAIL] Conectando a {smtp_host}:{smtp_port}")
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
-            print("[EMAIL] Iniciando TLS")
-            server.starttls()
-            print("[EMAIL] Autenticando")
-            server.login(smtp_user, smtp_password)
-            print(f"[EMAIL] Enviando a {recipient_email}")
-            server.send_message(message)
-            print("[EMAIL] Enviado exitosamente")
-    except Exception as exc:  # noqa: BLE001
+        if smtp_port == 465:
+            # Puerto 465 usa SSL directo (no STARTTLS).
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=60) as server:
+                print("[EMAIL] Autenticando (SSL)")
+                server.login(smtp_user, smtp_password)
+                print(f"[EMAIL] Enviando a {recipient_email}")
+                server.send_message(message)
+                print("[EMAIL] Enviado exitosamente")
+        else:
+            # Puertos como 587 requieren STARTTLS.
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=60) as server:
+                print("[EMAIL] Iniciando TLS")
+                server.starttls()
+                print("[EMAIL] Autenticando")
+                server.login(smtp_user, smtp_password)
+                print(f"[EMAIL] Enviando a {recipient_email}")
+                server.send_message(message)
+                print("[EMAIL] Enviado exitosamente")
+    except Exception as exc:
         import traceback
 
         error_trace = traceback.format_exc()
