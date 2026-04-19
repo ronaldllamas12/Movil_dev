@@ -57,7 +57,7 @@ function mapCartItemFromApi(item) {
     nombre: item.nombre,
     precio: Number(item.price || 0),
     cantidad: item.quantity,
-    image: item.imagen_url || 'https://via.placeholder.com/400x400?text=Producto',
+    image: item.imagen_url || 'https://placehold.co/400x400?text=Producto',
   };
 }
 

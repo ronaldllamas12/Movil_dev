@@ -1,4 +1,4 @@
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x400?text=Producto';
+const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=Producto';
 
 function formatPrice(value) {
   const numericValue = Number(value || 0);

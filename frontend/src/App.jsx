@@ -19,10 +19,10 @@ import { ThemeProvider } from './context/ThemeContext';
 
 // Datos de prueba (Luego vendrán de tu backend)
 const productsFallback = [
-  { id: 1, marca: 'Apple', nombre: 'iPhone 15 Pro Max', precio: '1,199', oldPrice: '1,299', discount: 8, rating: 4.8, reviews: 342, image: 'https://via.placeholder.com/400x400?text=iPhone+15+Pro+Max' },
-  { id: 2, marca: 'Samsung', nombre: 'Galaxy S24 Ultra', precio: '1,099', oldPrice: '1,199', discount: 8, rating: 4.7, reviews: 287, image: 'https://via.placeholder.com/400x400?text=Galaxy+S24+Ultra' },
-  { id: 3, marca: 'Google', nombre: 'Pixel 8 Pro', precio: '899', oldPrice: '999', discount: 10, rating: 4.6, reviews: 198, image: 'https://via.placeholder.com/400x400?text=Pixel+8+Pro' },
-  { id: 4, marca: 'Xiaomi', nombre: '14 Ultra', precio: '999', oldPrice: '1,099', discount: 9, rating: 4.5, reviews: 150, image: 'https://via.placeholder.com/400x400?text=Xiaomi+14+Ultra' },
+  { id: 1, marca: 'Apple', nombre: 'iPhone 15 Pro Max', precio: '1,199', oldPrice: '1,299', discount: 8, rating: 4.8, reviews: 342, image: 'https://placehold.co/400x400?text=iPhone+15+Pro+Max' },
+  { id: 2, marca: 'Samsung', nombre: 'Galaxy S24 Ultra', precio: '1,099', oldPrice: '1,199', discount: 8, rating: 4.7, reviews: 287, image: 'https://placehold.co/400x400?text=Galaxy+S24+Ultra' },
+  { id: 3, marca: 'Google', nombre: 'Pixel 8 Pro', precio: '899', oldPrice: '999', discount: 10, rating: 4.6, reviews: 198, image: 'https://placehold.co/400x400?text=Pixel+8+Pro' },
+  { id: 4, marca: 'Xiaomi', nombre: '14 Ultra', precio: '999', oldPrice: '1,099', discount: 9, rating: 4.5, reviews: 150, image: 'https://placehold.co/400x400?text=Xiaomi+14+Ultra' },
 ];
 function App() {
   const [products, setProducts] = useState(productsFallback);
