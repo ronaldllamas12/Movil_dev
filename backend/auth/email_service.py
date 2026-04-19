@@ -82,12 +82,21 @@ def send_password_reset_email(*, recipient_email: str, token: str) -> None:
     )
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+        print(f"[EMAIL] Conectando a {smtp_host}:{smtp_port}")
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+            print("[EMAIL] Iniciando TLS")
             server.starttls()
+            print("[EMAIL] Autenticando")
             server.login(smtp_user, smtp_password)
+            print(f"[EMAIL] Enviando a {recipient_email}")
             server.send_message(message)
+            print("[EMAIL] Enviado exitosamente")
     except Exception as exc:  # noqa: BLE001
+        import traceback
+
+        error_trace = traceback.format_exc()
+        print(f"[EMAIL ERROR] {error_trace}")
         raise HTTPException(
             status_code=502,
-            detail="No se pudo enviar el correo de recuperación en este momento.",
+            detail=f"No se pudo enviar el correo: {str(exc)}",
         ) from exc
