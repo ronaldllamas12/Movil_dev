@@ -8,9 +8,15 @@ from sqlalchemy.orm import Session
 from database.core.errors import ConflictError, NotFoundError
 
 
-def list_products(db: Session, skip: int = 0, limit: int = 100) -> list[Product]:
-    """Lista productos con paginación simple."""
-    stmt = select(Product).offset(skip).limit(limit).order_by(Product.id.desc())
+def list_products(db: Session, skip: int = 0, limit: int = 100, categoria: str | None = None) -> list[Product]:
+    """Lista productos con paginación simple y filtro opcional por categoría."""
+    stmt = select(Product)
+
+    if categoria:
+        categoria = categoria.strip().lower()
+        stmt = stmt.where(Product.categoria == categoria)
+
+    stmt = stmt.offset(skip).limit(limit).order_by(Product.id.desc())
     return list(db.scalars(stmt).all())
 
 

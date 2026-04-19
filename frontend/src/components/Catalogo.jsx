@@ -1,25 +1,112 @@
-// import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom'; // Importamos hooks de ruta
+import { getProducts } from '../api/services/productsService';
+import { toProductCardModel } from '../api/mappers/productMapper';
+import ProductCard from './ProductCard';
+
+const categorias = ['Todas', 'Premium', 'Gama Media', 'Economicos'];
+const marcas = ['Apple', 'Google', 'Motorola', 'Nothing', 'OPPO', 'OnePlus', 'Realme', 'Samsung', 'Xiaomi'];
+
+function slugToCategory(slug) {
+  const normalized = String(slug).toLowerCase();
+  if (normalized === 'premium') return 'Premium';
+  if (normalized === 'gama-media') return 'Gama Media';
+  if (normalized === 'economicos') return 'Economicos';
+  return null;
+}
+
+function categoryToApiValue(category) {
+  const normalized = category.toLowerCase();
+  if (normalized === 'premium') return 'premium';
+  if (normalized === 'gama media') return 'gama media';
+  if (normalized === 'economicos') return 'economico';
+  return normalized;
+}
 
 export default function Catalogo() {
   // 1. Extraemos la categoría de la URL (ej: /catalogo/premium)
   const { categoriaUrl } = useParams(); 
   const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [selectedBrands, setSelectedBrands] = useState([]);
 
   // Mapeamos el nombre de la URL al nombre visual
-  const categorias = ['Todas', 'Premium', 'Gama Media', 'Economicos'];
-  const marcas = ['Apple', 'Google', 'Motorola', 'Nothing', 'OPPO', 'OnePlus', 'Realme', 'Samsung', 'Xiaomi'];
-
-  // Determinamos la categoría seleccionada basada en la URL o 'Todas' por defecto
-const categoriaSel = categoriaUrl 
-  ? categorias.find(c => c.toLowerCase().replace(/\s+/g, '-') === categoriaUrl?.toLowerCase()) 
-  : 'Todas';
+  const categoriaSel = categoriaUrl 
+    ? slugToCategory(categoriaUrl) || 'Todas'
+    : 'Todas';
 
   // 2. Título Dinámico
   const tituloPagina = categoriaSel === 'Todas' 
     ? 'Catálogo de Celulares' 
     : `Celulares ${categoriaSel}`;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProducts = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      setSearchText('');
+      setSelectedBrands([]);
+
+      try {
+        const params = categoriaSel === 'Todas'
+          ? {}
+          : { categoria: categoryToApiValue(categoriaSel) };
+
+        const apiProducts = await getProducts(params);
+        const mappedProducts = apiProducts.map(toProductCardModel);
+
+        if (isMounted) {
+          setProducts(mappedProducts);
+        }
+      } catch {
+        if (isMounted) {
+          setErrorMessage('No se pudieron cargar los productos. Intenta recargar.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [categoriaSel]);
+
+  const handleSearchChange = (event) => {
+    setSearchText(event.target.value);
+  };
+
+  const toggleBrand = (brand) => {
+    setSelectedBrands((current) =>
+      current.includes(brand)
+        ? current.filter((item) => item !== brand)
+        : [...current, brand],
+    );
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+    const matchesSearch =
+      normalizedSearch === '' ||
+      product.nombre.toLowerCase().includes(normalizedSearch) ||
+      product.marca.toLowerCase().includes(normalizedSearch);
+
+    const matchesBrand =
+      selectedBrands.length === 0 ||
+      selectedBrands.includes(product.marca);
+
+    return matchesSearch && matchesBrand;
+  });
 
   // 3. Función para navegar al filtrar
   const manejarFiltro = (cat) => {
@@ -38,7 +125,7 @@ const categoriaSel = categoriaUrl
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800 transition-all">
           {tituloPagina}
         </h1>
-        <p className="text-gray-500">12 productos disponibles</p>
+        <p className="text-gray-500">{filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'} disponible{filteredProducts.length === 1 ? '' : 's'}</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -75,7 +162,12 @@ const categoriaSel = categoriaUrl
             <div className="space-y-3">
               {marcas.map(marca => (
                 <label key={marca} className="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" className="size-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={selectedBrands.includes(marca)}
+                    onChange={() => toggleBrand(marca)}
+                    className="size-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
                   <span className="text-sm text-slate-600 group-hover:text-purple-600 transition">{marca}</span>
                 </label>
               ))}
@@ -89,6 +181,8 @@ const categoriaSel = categoriaUrl
             <div className="relative w-full sm:max-w-xs">
               <input 
                 type="text" 
+                value={searchText}
+                onChange={handleSearchChange}
                 placeholder={`Buscar en ${categoriaSel.toLowerCase()}...`} 
                 className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 outline-none focus:ring-2 focus:ring-purple-500"
               />
@@ -98,11 +192,24 @@ const categoriaSel = categoriaUrl
             </button>
           </div>
 
-          {/* Grid de Productos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <div className="text-center py-20 col-span-full text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl">
-              Mostrando resultados para: <span className="font-bold text-slate-800">{categoriaSel}</span>
+          {errorMessage && (
+            <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+              {errorMessage}
             </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {isLoading ? (
+              <div className="col-span-full rounded-3xl bg-white border border-gray-100 p-12 text-center text-slate-500">
+                Cargando productos...
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              filteredProducts.map(product => <ProductCard key={product.id} product={product} />)
+            ) : (
+              <div className="col-span-full rounded-3xl bg-white border border-gray-100 p-12 text-center text-slate-500">
+                No se encontraron productos para esta categoría.
+              </div>
+            )}
           </div>
         </main>
       </div>

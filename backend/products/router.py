@@ -43,10 +43,11 @@ async def upload_product_image(
 def get_products(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
+    categoria: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[ProductResponse]:
-    """Lista productos disponibles."""
-    products = list_products(db, skip=skip, limit=limit)
+    """Lista productos disponibles, con filtro opcional por categoría."""
+    products = list_products(db, skip=skip, limit=limit, categoria=categoria)
     return [
         ProductResponse.model_validate(product, from_attributes=True)
         for product in products
