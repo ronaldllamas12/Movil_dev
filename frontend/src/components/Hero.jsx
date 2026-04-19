@@ -212,8 +212,8 @@ export default function Hero({ products = [] }) {
             {currentSlide.badge}
           </span>
 
-          <h1 className="mt-4 text-4xl font-extrabold leading-tight text-white md:text-6xl">
-            {currentSlide.title}
+          <h1 className="mt-4 text-4xl font-extrabold leading-tight text-white md:text-6xl" style={{ minHeight: '1.25em', height: '2.5em', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+            <span>{currentSlide.title}</span>
           </h1>
 
           <p className="mt-4 max-w-xl text-lg text-indigo-100 md:text-xl">
