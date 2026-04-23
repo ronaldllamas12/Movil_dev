@@ -1,5 +1,6 @@
 """Archivo principal de la aplicación FastAPI para la autenticación de usuarios."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -11,39 +12,51 @@ if str(PROJECT_ROOT) not in sys.path:
 from auth.router import router as auth_router
 from cart.models import CartItem
 from cart.router import router as cart_router
+from database.core.database import (Base, ensure_products_new_columns,
+                                    ensure_user_role_column, get_engine)
+from database.core.errors import (AppError, ConflictError, ForbiddenError,
+                                  NotFoundError, UnauthorizedError)
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from products.models import Product
 from products.router import router as products_router
 
-from database.core.database import (
-    Base,
-    ensure_products_new_columns,
-    ensure_user_role_column,
-    get_engine,
-)
-from database.core.errors import (
-    AppError,
-    ConflictError,
-    ForbiddenError,
-    NotFoundError,
-    UnauthorizedError,
-)
 
-app = FastAPI(title="API de Autenticación")
+def _parse_cors_origins() -> list[str]:
+    raw_origins = os.getenv("CORS_ALLOW_ORIGINS", "")
+    configured_origins = [
+        origin.strip() for origin in raw_origins.split(",") if origin.strip()
+    ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+    if configured_origins:
+        return configured_origins
+
+    return [
         "http://127.0.0.1:5500",
         "http://localhost:5500",
         "http://127.0.0.1:3000",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://localhost:5173",
-        "https://movil-dev.vercel.app"
-    ],
+        "https://movil-dev.vercel.app",
+    ]
+
+
+def _parse_cors_origin_regex() -> str | None:
+    configured_regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip()
+    if configured_regex:
+        return configured_regex
+
+    # Permite dominios de preview/branch en Vercel.
+    return r"https://.*\.vercel\.app"
+
+app = FastAPI(title="API de Autenticación")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_parse_cors_origins(),
+    allow_origin_regex=_parse_cors_origin_regex(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
