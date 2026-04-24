@@ -102,7 +102,7 @@ export default function Hero({ products = [] }) {
 
   const totalSlides = heroSlides.length;
 
-  const currentSlide = useMemo(() => heroSlides[activeIndex], [activeIndex]);
+  const currentSlide = useMemo(() => heroSlides[activeIndex], [heroSlides, activeIndex]);
   const isCurrentSlideVideo = currentSlide?.type === 'video';
 
   useEffect(() => {
@@ -203,22 +203,28 @@ export default function Hero({ products = [] }) {
         backgroundImage: `url(${HERO_BACKGROUND_IMAGE})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        willChange: 'transform, opacity',
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-indigo-950/65 to-slate-950/75" />
       <div className="mx-auto grid max-w-[1500px] items-center gap-10 md:grid-cols-2">
-        <div className="z-10 text-center md:text-left">
-          <span className="inline-flex rounded-full border border-white/40 bg-white/10 px-4 py-1 text-sm font-semibold text-white backdrop-blur-md">
-            {currentSlide.badge}
-          </span>
+        <div className="hero-copy-shell z-10 text-center md:text-left">
+          <div>
+            <span className="inline-flex rounded-full border border-white/40 bg-white/10 px-4 py-1 text-sm font-semibold text-white backdrop-blur-md">
+              {currentSlide.badge}
+            </span>
 
-          <h1 className="mt-4 text-4xl font-extrabold leading-tight text-white md:text-6xl" style={{ minHeight: '1.25em', height: '2.5em', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-            <span>{currentSlide.title}</span>
-          </h1>
+            <h1
+              className="mt-4 text-4xl font-extrabold leading-tight text-white md:text-6xl"
+              style={{ minHeight: '1.25em', height: '2.5em', overflow: 'hidden', display: 'flex', alignItems: 'center' }}
+            >
+              {currentSlide.title}
+            </h1>
 
-          <p className="mt-4 max-w-xl text-lg text-indigo-100 md:text-xl">
-            {currentSlide.description}
-          </p>
+            <p className="mt-4 max-w-xl text-lg text-indigo-100 md:text-xl">
+              {currentSlide.description}
+            </p>
+          </div>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3 md:justify-start">
             <Link
@@ -245,10 +251,10 @@ export default function Hero({ products = [] }) {
             {heroSlides.map((slide, index) => (
               <div
                 key={slide.id}
-                className={`absolute inset-0 [transition:opacity_900ms_ease,transform_1200ms_cubic-bezier(0.22,1,0.36,1),filter_900ms_ease] ${
+                className={`absolute inset-0 [transition:all_900ms_cubic-bezier(0.22,1,0.36,1)] ${
                   index === activeIndex
                     ? 'opacity-100 translate-y-0 scale-100 blur-0'
-                    : 'opacity-0 translate-y-2 scale-[1.02] blur-[2px]'
+                    : 'opacity-0 translate-y-6 scale-[1.05] blur-sm'
                 }`}
               >
                 {slide.type === 'video' ? (
@@ -300,7 +306,7 @@ export default function Hero({ products = [] }) {
           <button
             type="button"
             onClick={goToPrevious}
-            className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/40 bg-white/10 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-white/20"
+            className="btn-nav left-3"
             aria-label="Slide anterior"
           >
             <ChevronLeft className="size-5" />
@@ -309,7 +315,7 @@ export default function Hero({ products = [] }) {
           <button
             type="button"
             onClick={goToNext}
-            className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/40 bg-white/10 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-white/20"
+            className="btn-nav right-3"
             aria-label="Siguiente slide"
           >
             <ChevronRight className="size-5" />
