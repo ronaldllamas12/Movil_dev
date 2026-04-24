@@ -52,3 +52,16 @@ class CartTaxSettingsUpdate(BaseModel):
     """Payload para actualizar impuesto del carrito."""
 
     tax_percent: float = Field(..., ge=0, le=100)
+
+
+class CartMergeItem(BaseModel):
+    """Ítem del carrito guest a fusionar."""
+
+    product_id: int = Field(..., ge=1)
+    quantity: int = Field(..., ge=1)
+
+
+class CartMergeRequest(BaseModel):
+    """Payload para fusionar carrito guest en carrito autenticado."""
+
+    items: list[CartMergeItem]

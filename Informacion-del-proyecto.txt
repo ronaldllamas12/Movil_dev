@@ -162,7 +162,7 @@ validar que el carrito persista desdpues de cerrar sesion y volver a iniciar (us
 
 Sprint 5 – Checkout y pagos
 •	Integración con pasarela de pagos (Stripe/PayPal).
-  autenticacion con agi de google.
+•	Autenticación con API de Google al registrarse.
 •	Validación de transacciones.
 •	Generación de facturas electrónicas.
 •	Notificaciones de confirmación.

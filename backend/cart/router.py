@@ -4,20 +4,36 @@ import json
 import os
 from typing import Any
 
-from auth.dependencies import get_current_admin, get_optional_current_user
-from cart.schemas import (CartAddRequest, CartAddResponse, CartItemResponse,
-                          CartTaxSettingsResponse, CartTaxSettingsUpdate,
-                          CartTotalResponse)
-from cart.services import (add_item_for_user, compute_cart_totals,
-                           get_or_create_cart_settings, get_product_for_cart,
-                           list_items_for_user, remove_item_for_user,
-                           set_cart_tax_percent)
-from database.core.database import get_db
-from database.core.errors import ConflictError, NotFoundError
+from auth.dependencies import (
+    get_current_admin,
+    get_current_user,
+    get_optional_current_user,
+)
+from cart.schemas import (
+    CartAddRequest,
+    CartAddResponse,
+    CartItemResponse,
+    CartMergeRequest,
+    CartTaxSettingsResponse,
+    CartTaxSettingsUpdate,
+    CartTotalResponse,
+)
+from cart.services import (
+    add_item_for_user,
+    compute_cart_totals,
+    get_or_create_cart_settings,
+    get_product_for_cart,
+    list_items_for_user,
+    remove_item_for_user,
+    set_cart_tax_percent,
+)
 from fastapi import APIRouter, Depends, Request, Response, status
 from products.models import Product
 from sqlalchemy.orm import Session
 from users.models import User
+
+from database.core.database import get_db
+from database.core.errors import ConflictError, NotFoundError
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
@@ -371,3 +387,27 @@ def get_cart_total(
         shipping_fee=shipping_fee,
     )
     return CartTotalResponse(source="guest", **totals.__dict__)
+
+
+@router.post("/merge", response_model=list[CartItemResponse])
+def merge_guest_cart(
+    payload: CartMergeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[CartItemResponse]:
+    """Fusiona ítems del carrito guest en el carrito del usuario autenticado."""
+    for item in payload.items:
+        try:
+            add_item_for_user(
+                db,
+                user_id=current_user.id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+            )
+        except (NotFoundError, ConflictError):
+            # Si el producto no existe o hay conflicto de stock, se ignora ese ítem.
+            pass
+
+    return _build_items_for_authenticated(db, current_user.id)
+
+    return _build_items_for_authenticated(db, current_user.id)

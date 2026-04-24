@@ -33,3 +33,8 @@ export async function addToCart(productId, quantity = 1) {
 export async function removeFromCart(itemId) {
   await apiClient.delete(`/cart/remove/${itemId}`);
 }
+
+export async function mergeCart(items) {
+  const response = await apiClient.post('/cart/merge', { items });
+  return response.data;
+}
