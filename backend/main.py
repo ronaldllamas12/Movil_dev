@@ -1,13 +1,17 @@
-"""Archivo principal de la aplicación FastAPI para la autenticación de usuarios."""
+"""Archivo principal de la aplicación FastAPI para la API."""
 
 import os
 import sys
 from pathlib import Path
 
-# Permite importar paquetes hermanos (por ejemplo `database`) al ejecutar desde `backend/`.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Evita colisión con el paquete externo `auth` (site-packages) asegurando
+# que el `backend/` local quede primero en sys.path cuando ejecutamos `uvicorn main:app`.
+BACKEND_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BACKEND_DIR.parent
+for path in (BACKEND_DIR, PROJECT_ROOT):
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 from auth.router import router as auth_router
 from cart.models import CartItem

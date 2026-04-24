@@ -261,14 +261,22 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setActiveTab('login')}
-              className={`flex-1 rounded-[1rem] py-3 text-sm font-semibold transition ${activeTab === 'login' ? 'bg-white text-[color:var(--text)] shadow-sm' : 'text-[color:var(--muted)] hover:text-[color:var(--text)]'}`}
+              className={`flex-1 rounded-[1rem] py-3 text-sm font-semibold transition ${
+                activeTab === 'login'
+                  ? 'bg-[color:var(--surface)] text-[color:var(--text)] shadow-sm'
+                  : 'text-[color:var(--muted)] hover:text-[color:var(--text)]'
+              }`}
             >
               Iniciar Sesión
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('register')}
-              className={`flex-1 rounded-[1rem] py-3 text-sm font-semibold transition ${activeTab === 'register' ? 'bg-white text-[color:var(--text)] shadow-sm' : 'text-[color:var(--muted)] hover:text-[color:var(--text)]'}`}
+              className={`flex-1 rounded-[1rem] py-3 text-sm font-semibold transition ${
+                activeTab === 'register'
+                  ? 'bg-[color:var(--surface)] text-[color:var(--text)] shadow-sm'
+                  : 'text-[color:var(--muted)] hover:text-[color:var(--text)]'
+              }`}
             >
               Registrarse
             </button>

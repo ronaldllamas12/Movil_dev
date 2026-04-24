@@ -122,23 +122,23 @@ export default function Catalogo() {
     <div className="max-w-[1440px] mx-auto px-6 py-10">
       {/* Encabezado Dinámico */}
       <div className="mb-8 text-center lg:text-left">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 transition-all">
+        <h1 className="text-2xl md:text-3xl font-bold text-[color:var(--text)] transition-all">
           {tituloPagina}
         </h1>
-        <p className="text-gray-500">{filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'} disponible{filteredProducts.length === 1 ? '' : 's'}</p>
+        <p className="text-[color:var(--muted)]">{filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'} disponible{filteredProducts.length === 1 ? '' : 's'}</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         
         {/* SIDEBAR DE FILTROS */}
-        <aside className="w-full lg:w-64 space-y-6 bg-white p-6 rounded-2xl border border-gray-100 lg:sticky lg:top-24 h-fit">
+        <aside className="w-full lg:w-64 space-y-6 bg-[color:var(--surface)] p-6 rounded-2xl border border-[color:var(--border)] lg:sticky lg:top-24 h-fit">
           <div className="flex items-center gap-2 border-b pb-4">
             <Filter className="size-5 text-purple-600" />
             <h2 className="font-bold text-lg">Filtros</h2>
           </div>
 
           <div>
-            <h3 className="font-bold text-slate-700 mb-4">Categoría</h3>
+            <h3 className="font-bold text-[color:var(--text)] mb-4">Categoría</h3>
             <div className="flex flex-col gap-2">
               {categorias.map(cat => (
                 <button
@@ -146,8 +146,8 @@ export default function Catalogo() {
                   onClick={() => manejarFiltro(cat)} // Ahora navega en lugar de solo cambiar estado
                   className={`text-left px-4 py-2 rounded-xl text-sm font-medium transition ${
                     categoriaSel === cat 
-                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' 
-                    : 'bg-gray-50 text-slate-600 hover:bg-gray-100'
+                    ? 'bg-purple-600 text-white shadow-lg' 
+                    : 'bg-[color:var(--surface-muted)] text-[color:var(--muted)] hover:bg-[color:var(--surface-hover)]'
                   }`}
                 >
                   {cat}
@@ -158,7 +158,7 @@ export default function Catalogo() {
 
           {/* Filtro por Marca (Se mantiene igual) */}
           <div>
-            <h3 className="font-bold text-slate-700 mb-4">Marca</h3>
+            <h3 className="font-bold text-[color:var(--text)] mb-4">Marca</h3>
             <div className="space-y-3">
               {marcas.map(marca => (
                 <label key={marca} className="flex items-center gap-3 cursor-pointer group">
@@ -166,9 +166,9 @@ export default function Catalogo() {
                     type="checkbox"
                     checked={selectedBrands.includes(marca)}
                     onChange={() => toggleBrand(marca)}
-                    className="size-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="size-4 rounded border-[color:var(--border)] text-purple-600 focus:ring-purple-500"
                   />
-                  <span className="text-sm text-slate-600 group-hover:text-purple-600 transition">{marca}</span>
+                  <span className="text-sm text-[color:var(--muted)] group-hover:text-purple-600 transition">{marca}</span>
                 </label>
               ))}
             </div>
@@ -184,10 +184,10 @@ export default function Catalogo() {
                 value={searchText}
                 onChange={handleSearchChange}
                 placeholder={`Buscar en ${categoriaSel.toLowerCase()}...`} 
-                className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[color:var(--surface)] border border-[color:var(--border)] rounded-xl py-2 px-4 outline-none focus:ring-2 focus:ring-purple-500 text-[color:var(--text)]"
               />
             </div>
-            <button className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+            <button className="flex items-center gap-2 bg-[color:var(--surface)] border border-[color:var(--border)] px-4 py-2 rounded-xl text-sm font-medium hover:bg-[color:var(--surface-hover)] transition text-[color:var(--text)]">
               Destacados <ChevronDown className="size-4" />
             </button>
           </div>
@@ -200,13 +200,13 @@ export default function Catalogo() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {isLoading ? (
-              <div className="col-span-full rounded-3xl bg-white border border-gray-100 p-12 text-center text-slate-500">
+              <div className="col-span-full rounded-3xl bg-[color:var(--surface)] border border-[color:var(--border)] p-12 text-center text-[color:var(--muted)]">
                 Cargando productos...
               </div>
             ) : filteredProducts.length > 0 ? (
               filteredProducts.map(product => <ProductCard key={product.id} product={product} />)
             ) : (
-              <div className="col-span-full rounded-3xl bg-white border border-gray-100 p-12 text-center text-slate-500">
+              <div className="col-span-full rounded-3xl bg-[color:var(--surface)] border border-[color:var(--border)] p-12 text-center text-[color:var(--muted)]">
                 No se encontraron productos para esta categoría.
               </div>
             )}

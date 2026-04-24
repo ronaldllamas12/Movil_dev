@@ -25,17 +25,20 @@ export default function Features() {
   ];
 
   return (
-    <section className="w-full bg-white py-12 border-b border-gray-100">
+    <section className="w-full bg-[color:var(--surface)] py-12 border-b border-[color:var(--text)]">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {items.map((item, index) => (
-            <div key={index} className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="bg-gray-100 p-3 rounded-lg">
+            <div
+              key={index}
+              className="flex items-center gap-4 p-4 rounded-xl hover:bg-[color:var(--surface-hover)] transition-colors"
+            >
+              <div className="bg-[color:var(--surface-muted)] p-3 rounded-lg">
                 {item.icon}
               </div>
               <div>
-                <h3 className="font-bold text-slate-800">{item.title}</h3>
-                <p className="text-sm text-slate-500">{item.desc}</p>
+                <h3 className="font-bold text-[color:var(--text)]">{item.title}</h3>
+                <p className="text-sm text-[color:var(--muted)]">{item.desc}</p>
               </div>
             </div>
           ))}

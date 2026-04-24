@@ -7,8 +7,12 @@ from uuid import uuid4
 
 from auth.models import PasswordResetToken, RevokedToken
 from fastapi import HTTPException
-from google.auth.transport.requests import Request as GoogleRequest
-from google.oauth2 import id_token as google_id_token
+try:
+    from google.auth.transport.requests import Request as GoogleRequest
+    from google.oauth2 import id_token as google_id_token
+except ModuleNotFoundError:  # pragma: no cover
+    GoogleRequest = None
+    google_id_token = None
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from users.constants import UserRole
@@ -58,6 +62,10 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
 
 def verify_google_id_token(id_token: str) -> dict[str, object]:
     """Verifica el ID token de Google y retorna sus claims principales."""
+    if GoogleRequest is None or google_id_token is None:
+        raise UnauthorizedError(
+            "Google OAuth no está disponible en el servidor (falta dependencia google-auth)."
+        )
     if not GOOGLE_CLIENT_ID:
         raise UnauthorizedError(
             "Google OAuth no está configurado. Define la variable de entorno GOOGLE_CLIENT_ID."

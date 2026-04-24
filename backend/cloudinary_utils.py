@@ -3,14 +3,22 @@
 import os
 from typing import Any
 
-import cloudinary
-import cloudinary.uploader
+try:
+    import cloudinary  # type: ignore
+    import cloudinary.uploader  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    cloudinary = None
 from fastapi import HTTPException, UploadFile
 
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 
 def _configure_cloudinary() -> None:
+    if cloudinary is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Cloudinary no está disponible en el servidor (falta dependencia `cloudinary`).",
+        )
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
     api_key = os.getenv("CLOUDINARY_API_KEY")
     api_secret = os.getenv("CLOUDINARY_API_SECRET")

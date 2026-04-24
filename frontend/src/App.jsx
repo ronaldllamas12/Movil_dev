@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toProductCardModel } from './api/mappers/productMapper';
 import { getProducts } from './api/services/productsService';
 import AdminDashboard from './components/AdminDashboard';
@@ -68,10 +69,13 @@ function App() {
                       {/* Sección Más Vendidos */}
               <section className="max-w-7xl mx-auto px-6 py-16">
                 <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-3xl font-bold text-slate-800">Más Vendidos</h2>
-                  <button className="text-purple-600 font-bold border border-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 transition">
+                  <h2 className="text-3xl font-bold text-[color:var(--text)]">Más Vendidos</h2>
+                  <Link
+                    to="/catalogo"
+                    className="text-purple-600 font-bold border border-purple-600 px-4 py-2 rounded-lg hover:bg-[color:var(--surface-hover)] transition"
+                  >
                     Ver todos →
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -83,8 +87,13 @@ function App() {
 {/* Prod      uctos Destacados (Puedes repetir la lógica o variar los productos) */}
               <section className="max-w-7xl mx-auto px-6 py-16 bg-[color:var(--surface-muted)] rounded-[3rem] my-10">
                 <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-3xl font-bold text-slate-800">Productos Destacados</h2>
-                  <button className="text-purple-600 font-bold border border-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 transition">Ver todos →</button>
+                  <h2 className="text-3xl font-bold text-[color:var(--text)]">Productos Destacados</h2>
+                  <Link
+                    to="/catalogo"
+                    className="text-purple-600 font-bold border border-purple-600 px-4 py-2 rounded-lg hover:bg-[color:var(--surface-hover)] transition"
+                  >
+                    Ver todos →
+                  </Link>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {products.map(p => <ProductCard key={p.id} product={p} />)}

@@ -36,7 +36,7 @@ export default function Carrito() {
   if (isCartLoading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-2xl font-bold text-slate-800">Cargando carrito...</h2>
+        <h2 className="text-2xl font-bold text-[color:var(--text)]">Cargando carrito...</h2>
       </div>
     );
   }
@@ -45,15 +45,15 @@ export default function Carrito() {
     return (
       <div className="max-w-7xl mx-auto px-6 py-20 text-center">
         <div className="flex justify-center mb-6">
-          <div className="bg-gray-100 p-6 rounded-full">
-            <ShoppingBag className="size-12 text-gray-400" />
+          <div className="bg-[color:var(--surface-muted)] p-6 rounded-full">
+            <ShoppingBag className="size-12 text-[color:var(--muted)]" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-slate-800 mb-4">Tu carrito está vacío</h2>
+        <h2 className="text-3xl font-bold text-[color:var(--text)] mb-4">Tu carrito está vacío</h2>
         {cartError ? (
           <p className="text-red-500 mb-4">{cartError}</p>
         ) : null}
-        <p className="text-gray-500 mb-8">Parece que aún no has añadido ningún producto.</p>
+        <p className="text-[color:var(--muted)] mb-8">Parece que aún no has añadido ningún producto.</p>
         <Link to="/catalogo" className="inline-flex items-center gap-2 bg-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-purple-700 transition">
           <ArrowLeft className="size-5" />
           Volver a la tienda
@@ -64,7 +64,7 @@ export default function Carrito() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-slate-800 mb-8">Mi Carrito ({carrito.length})</h1>
+      <h1 className="text-3xl font-bold text-[color:var(--text)] mb-8">Mi Carrito ({carrito.length})</h1>
       {cartError ? (
         <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{cartError}</p>
       ) : null}
@@ -74,38 +74,38 @@ export default function Carrito() {
         {/* LISTA DE PRODUCTOS (Columna Izquierda) */}
         <div className="lg:col-span-2 space-y-4">
           {carrito.map((item) => (
-            <div key={item.id} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div key={item.id} className="flex items-center gap-4 bg-[color:var(--surface)] p-4 rounded-2xl border border-[color:var(--border)] shadow-sm">
               <img 
                 src={item.image} 
                 alt={item.nombre} 
-                className="w-24 h-24 object-contain bg-gray-50 rounded-lg"
+                className="w-24 h-24 object-contain bg-[color:var(--surface-muted)] rounded-lg"
               />
               
               <div className="flex-1">
-                <h3 className="font-bold text-slate-800 text-lg">{item.nombre}</h3>
+                <h3 className="font-bold text-[color:var(--text)] text-lg">{item.nombre}</h3>
                 {item.referencia ? (
-                  <p className="text-xs text-slate-500">Ref: {item.referencia}</p>
+                  <p className="text-xs text-[color:var(--muted)]">Ref: {item.referencia}</p>
                 ) : null}
                 <p className="text-purple-600 font-bold">$ {item.precio.toLocaleString()
                 }</p>
               </div>
 
               {/* Controles de Cantidad */}
-              <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl">
+              <div className="flex items-center gap-3 bg-[color:var(--surface-muted)] p-2 rounded-xl">
                 <button 
                   onClick={() => actualizarCantidad(item.id, -1)}
-                  className="p-1 hover:bg-gray-200 rounded-lg transition"
+                  className="p-1 hover:bg-[color:var(--surface-hover)] rounded-lg transition"
                 >
-                  <Minus className="size-4 text-slate-600" />
+                  <Minus className="size-4 text-[color:var(--muted)]" />
                 </button>
-                <span className="font-bold text-slate-800 min-w-[20px] text-center">
+                <span className="font-bold text-[color:var(--text)] min-w-[20px] text-center">
                   {item.cantidad}
                 </span>
                 <button 
                   onClick={() => actualizarCantidad(item.id, 1)}
-                  className="p-1 hover:bg-gray-200 rounded-lg transition"
+                  className="p-1 hover:bg-[color:var(--surface-hover)] rounded-lg transition"
                 >
-                  <Plus className="size-4 text-slate-600" />
+                  <Plus className="size-4 text-[color:var(--muted)]" />
                 </button>
               </div>
 
@@ -120,10 +120,10 @@ export default function Carrito() {
         </div>
 
         {/* RESUMEN DE COMPRA (Columna Derecha) */}
-        <div className="bg-slate-900 text-white p-8 rounded-[2rem] h-fit sticky top-24">
+        <div className="bg-purple-600 text-white p-8 rounded-[2rem] h-fit sticky top-24">
           <h2 className="text-xl font-bold mb-6">Resumen de compra</h2>
           
-          <div className="space-y-4 text-gray-400">
+          <div className="space-y-4 text-purple-100">
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span className="text-white font-medium">${subtotal.toLocaleString()}</span>
@@ -131,7 +131,7 @@ export default function Carrito() {
             {descuentoTotal > 0 && (
               <div className="flex justify-between">
                 <span>Descuentos</span>
-                <span className="text-green-400 font-medium">-${descuentoTotal.toLocaleString()}</span>
+                <span className="text-green-300 font-medium">-${descuentoTotal.toLocaleString()}</span>
               </div>
             )}
             {descuentoTotal > 0 && (
@@ -142,17 +142,17 @@ export default function Carrito() {
             )}
             <div className="flex justify-between">
               <span>Envío</span>
-              <span className={costoEnvio === 0 ? "text-green-400 font-medium" : "text-white font-medium"}>
+              <span className={costoEnvio === 0 ? "text-green-300 font-medium" : "text-white font-medium"}>
                 {costoEnvio === 0 ? "Gratis" : `$${costoEnvio.toLocaleString()}`}
               </span>
             </div>
-            <div className="flex justify-between border-b border-slate-800 pb-4">
+            <div className="flex justify-between border-b border-purple-400 pb-4">
               <span>IVA ({cartTaxPercent}%)</span>
               <span className="text-white font-medium">${iva.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-xl font-bold text-white pt-2">
               <span>Total</span>
-              <span className="text-purple-400">${total.toLocaleString()}</span>
+              <span className="text-yellow-300">${total.toLocaleString()}</span>
             </div>
           </div>
 
