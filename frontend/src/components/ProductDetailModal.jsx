@@ -36,6 +36,21 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
     }
   }, [isOpen, product]);
 
+  // Evita que la página de detrás haga scroll; solo el panel del modal desplaza.
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !product) return null;
 
   // Usar fullProduct si está disponible, si no usar product
@@ -82,9 +97,9 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative min-h-screen flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden p-4">
           <div className="bg-[color:var(--surface)] text-[color:var(--text)] rounded-2xl p-8 flex items-center justify-center border border-[color:var(--border)] shadow-2xl">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
@@ -94,16 +109,16 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="relative bg-[color:var(--surface)] text-[color:var(--text)] rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[color:var(--border)]">
+      {/* Modal: scroll solo dentro del panel */}
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden p-4">
+        <div className="relative max-h-[min(90dvh,90vh)] w-full max-w-5xl overflow-y-auto overscroll-y-contain rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text)] shadow-2xl">
           {/* Botón cerrar */}
           <button
             onClick={onClose}
