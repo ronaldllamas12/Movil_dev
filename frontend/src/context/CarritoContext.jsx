@@ -404,9 +404,6 @@ export const useCarrito = () => {
 };
 
 
-const CarritoContext = createContext();
-const CART_SETTINGS_KEY = 'movil_dev_cart_settings_v1';
-
 const DEFAULT_CART_SETTINGS = {
   taxRate: 21,
   discountRules: [],
