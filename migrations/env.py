@@ -1,106 +1,103 @@
 import logging
+import os
+import sys
 from logging.config import fileConfig
-
-from flask import current_app
+from pathlib import Path
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# ---------------------------------------------------------------------------
+# Path setup — make sure both the project root and backend/ are importable
+# so that `database.core.database` and the model packages resolve correctly.
+# ---------------------------------------------------------------------------
+_MIGRATIONS_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _MIGRATIONS_DIR.parent
+_BACKEND_DIR = _PROJECT_ROOT / "backend"
+
+for _p in (_PROJECT_ROOT, _BACKEND_DIR):
+    _s = str(_p)
+    if _s not in sys.path:
+        sys.path.insert(0, _s)
+
+# Import all models so that their tables are registered on Base.metadata
+# before Alembic inspects it for autogenerate.
+import auth.models  # noqa: F401  (RevokedToken, PasswordResetToken)
+import cart.models  # noqa: F401  (CartItem, CartSettings)
+import products.models  # noqa: F401  (Product)
+import users.models  # noqa: F401  (User)
+
+from database.core.database import Base  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Alembic Config object — provides access to values in alembic.ini.
+# ---------------------------------------------------------------------------
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)
-logger = logging.getLogger('alembic.env')
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+logger = logging.getLogger("alembic.env")
+
+# ---------------------------------------------------------------------------
+# Inject DATABASE_URL from the environment so Railway (and local .env) work
+# without hard-coding credentials in alembic.ini.
+# ---------------------------------------------------------------------------
+_raw_url = os.environ.get("DATABASE_URL", "")
+if not _raw_url:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is not set. "
+        "Define it in your .env file or Railway service variables."
+    )
+# Alembic/psycopg2 expects postgresql://, but psycopg3 needs postgresql+psycopg://.
+# Normalise to the plain dialect so either driver can be configured via alembic.ini.
+_db_url = _raw_url.replace("postgresql+psycopg://", "postgresql://", 1)
+config.set_main_option("sqlalchemy.url", _db_url)
+
+# ---------------------------------------------------------------------------
+# Target metadata — used by `alembic revision --autogenerate`.
+# ---------------------------------------------------------------------------
+target_metadata = Base.metadata
 
 
-def get_engine():
-    try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions['migrate'].db.get_engine()
-    except (TypeError, AttributeError):
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions['migrate'].db.engine
+# ---------------------------------------------------------------------------
+# Migration runners
+# ---------------------------------------------------------------------------
 
-
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace(
-            '%', '%%')
-    except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
-
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option('sqlalchemy.url', get_engine_url())
-target_db = current_app.extensions['migrate'].db
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
-
-def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
-    return target_db.metadata
-
-
-def run_migrations_offline():
+def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    Configures the context with just a URL (no live DB connection needed).
+    Emits SQL to stdout / a file rather than executing it directly.
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online():
+def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
+    Creates an Engine and associates a connection with the Alembic context.
     """
-
-    # this callback is used to prevent an auto-migration from being generated
-    # when there are no changes to the schema
-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-    def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info('No changes in schema detected.')
-
-    conf_args = current_app.extensions['migrate'].configure_args
-    if conf_args.get("process_revision_directives") is None:
-        conf_args["process_revision_directives"] = process_revision_directives
-
-    connectable = get_engine()
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
+            target_metadata=target_metadata,
         )
 
         with context.begin_transaction():
