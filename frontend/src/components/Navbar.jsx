@@ -209,18 +209,6 @@ export default function Navbar() {
           </form>
         </div>
 
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] px-4 py-3">
-          <span className="text-sm font-medium text-[color:var(--text)]">Tema</span>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Cambiar tema"
-            className="inline-flex items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] p-2 text-[color:var(--text)] shadow-sm transition hover:bg-[color:var(--surface-hover)]"
-          >
-            {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </button>
-        </div>
-
         <div className="flex flex-col gap-2">
           <NavLink
             to="/"

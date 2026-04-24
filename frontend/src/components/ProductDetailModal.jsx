@@ -83,9 +83,9 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-white bg-opacity-50" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
         <div className="relative min-h-screen flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 flex items-center justify-center">
+          <div className="bg-[color:var(--surface)] text-[color:var(--text)] rounded-2xl p-8 flex items-center justify-center border border-[color:var(--border)] shadow-2xl">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
         </div>
@@ -97,24 +97,24 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-white bg-opacity-100 transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="relative bg-red rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="relative bg-[color:var(--surface)] text-[color:var(--text)] rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[color:var(--border)]">
           {/* Botón cerrar */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 bg-red-300 rounded-full shadow-lg hover:bg-red-500 transition-colors"
+            className="absolute top-4 right-4 z-10 p-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-muted)] shadow-lg hover:bg-[color:var(--surface-hover)] transition-colors"
           >
-            <X className="size-5" />
+            <X className="size-5 text-[color:var(--text)]" />
           </button>
 
           <div className="grid md:grid-cols-2 gap-8 p-6 md:p-8">
             {/* Imagen del producto */}
-            <div className="bg-gray-50 rounded-2xl p-6 flex items-center justify-center">
+            <div className="bg-[color:var(--surface-muted)] rounded-2xl p-6 flex items-center justify-center border border-[color:var(--border)]">
               <img 
                 src={normalizedProduct.imagen_url || normalizedProduct.image} 
                 alt={normalizedProduct.nombre}
@@ -130,9 +130,9 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
               {/* Marca y nombre */}
               <div>
                 <p className="text-sm text-blue-600 font-semibold uppercase mb-2">{normalizedProduct.marca}</p>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{normalizedProduct.nombre}</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-[color:var(--text)]">{normalizedProduct.nombre}</h2>
                 {normalizedProduct.descripcion_breve && (
-                  <p className="text-gray-600 mt-2">{normalizedProduct.descripcion_breve}</p>
+                  <p className="text-[color:var(--muted)] mt-2">{normalizedProduct.descripcion_breve}</p>
                 )}
               </div>
 
@@ -153,7 +153,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
               {/* Selector de color */}
               {normalizedProduct.colores_disponibles && normalizedProduct.colores_disponibles.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Colores disponibles</h3>
+                  <h3 className="font-semibold text-[color:var(--text)] mb-3">Colores disponibles</h3>
                   <div className="flex gap-3 flex-wrap">
                     {normalizedProduct.colores_disponibles.map((color) => (
                       <button
@@ -167,14 +167,14 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                           ${selectedColor === color ? 'ring-blue-500 ring-offset-2' : 'ring-transparent'}
                           hover:scale-110 transition-transform
                         `} />
-                        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-600 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[color:var(--muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                           {color}
                         </span>
                       </button>
                     ))}
                   </div>
                   {selectedColor && (
-                    <p className="text-sm text-gray-600 mt-2">
+                    <p className="text-sm text-[color:var(--muted)] mt-2">
                       Color seleccionado: <span className="font-medium">{selectedColor}</span>
                     </p>
                   )}
@@ -183,19 +183,19 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
 
               {/* Selector de cantidad */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Cantidad</h3>
+                <h3 className="font-semibold text-[color:var(--text)] mb-3">Cantidad</h3>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleQuantityChange(-1)}
-                    className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                    className="w-10 h-10 rounded-full border border-[color:var(--border)] flex items-center justify-center hover:bg-[color:var(--surface-hover)] transition-colors"
                     disabled={quantity <= 1}
                   >
                     -
                   </button>
-                  <span className="w-12 text-center font-semibold text-lg">{quantity}</span>
+                  <span className="w-12 text-center font-semibold text-lg text-[color:var(--text)]">{quantity}</span>
                   <button
                     onClick={() => handleQuantityChange(1)}
-                    className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                    className="w-10 h-10 rounded-full border border-[color:var(--border)] flex items-center justify-center hover:bg-[color:var(--surface-hover)] transition-colors"
                     disabled={quantity >= normalizedProduct.cantidad_stock}
                   >
                     +
@@ -238,96 +238,96 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                 normalizedProduct.resolucion_camara_frontal || 
                 normalizedProduct.capacidad_carga_rapida || 
                 normalizedProduct.garantia_meses) && (
-                <div className="border-t pt-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Especificaciones técnicas</h3>
+                <div className="border-t border-[color:var(--border)] pt-6">
+                  <h3 className="font-semibold text-[color:var(--text)] mb-4">Especificaciones técnicas</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {normalizedProduct.procesador && (
                       <div className="flex items-center gap-2">
-                        <Cpu className="size-4 text-gray-500 shrink-0" />
+                        <Cpu className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Procesador</p>
-                          <p className="font-medium">{normalizedProduct.procesador}</p>
+                          <p className="text-[color:var(--muted)]">Procesador</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.procesador}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.tamano_memoria_ram && (
                       <div className="flex items-center gap-2">
-                        <MemoryStick className="size-4 text-gray-500 shrink-0" />
+                        <MemoryStick className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">RAM</p>
-                          <p className="font-medium">{normalizedProduct.tamano_memoria_ram}</p>
+                          <p className="text-[color:var(--muted)]">RAM</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.tamano_memoria_ram}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.rom && (
                       <div className="flex items-center gap-2">
-                        <HardDrive className="size-4 text-gray-500 shrink-0" />
+                        <HardDrive className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Almacenamiento</p>
-                          <p className="font-medium">{normalizedProduct.rom}</p>
+                          <p className="text-[color:var(--muted)]">Almacenamiento</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.rom}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.bateria && (
                       <div className="flex items-center gap-2">
-                        <Battery className="size-4 text-gray-500 shrink-0" />
+                        <Battery className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Batería</p>
-                          <p className="font-medium">{normalizedProduct.bateria}</p>
+                          <p className="text-[color:var(--muted)]">Batería</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.bateria}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.dimensiones && (
                       <div className="flex items-center gap-2">
-                        <Ruler className="size-4 text-gray-500 shrink-0" />
+                        <Ruler className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Dimensiones</p>
-                          <p className="font-medium">{normalizedProduct.dimensiones}</p>
+                          <p className="text-[color:var(--muted)]">Dimensiones</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.dimensiones}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.conectividad && (
                       <div className="flex items-center gap-2">
-                        <Wifi className="size-4 text-gray-500 shrink-0" />
+                        <Wifi className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Conectividad</p>
-                          <p className="font-medium">{normalizedProduct.conectividad}</p>
+                          <p className="text-[color:var(--muted)]">Conectividad</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.conectividad}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.resolucion_camara_principal && (
                       <div className="flex items-center gap-2">
-                        <Camera className="size-4 text-gray-500 shrink-0" />
+                        <Camera className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Cámara principal</p>
-                          <p className="font-medium">{normalizedProduct.resolucion_camara_principal}</p>
+                          <p className="text-[color:var(--muted)]">Cámara principal</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.resolucion_camara_principal}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.resolucion_camara_frontal && (
                       <div className="flex items-center gap-2">
-                        <Camera className="size-4 text-gray-500 shrink-0" />
+                        <Camera className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Cámara frontal</p>
-                          <p className="font-medium">{normalizedProduct.resolucion_camara_frontal}</p>
+                          <p className="text-[color:var(--muted)]">Cámara frontal</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.resolucion_camara_frontal}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.capacidad_carga_rapida && (
                       <div className="flex items-center gap-2">
-                        <Zap className="size-4 text-gray-500 shrink-0" />
+                        <Zap className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Carga rápida</p>
-                          <p className="font-medium">{normalizedProduct.capacidad_carga_rapida}</p>
+                          <p className="text-[color:var(--muted)]">Carga rápida</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.capacidad_carga_rapida}</p>
                         </div>
                       </div>
                     )}
                     {normalizedProduct.garantia_meses && (
                       <div className="flex items-center gap-2">
-                        <Shield className="size-4 text-gray-500 shrink-0" />
+                        <Shield className="size-4 text-[color:var(--muted)] shrink-0" />
                         <div>
-                          <p className="text-gray-500">Garantía</p>
-                          <p className="font-medium">{normalizedProduct.garantia_meses} meses</p>
+                          <p className="text-[color:var(--muted)]">Garantía</p>
+                          <p className="font-medium text-[color:var(--text)]">{normalizedProduct.garantia_meses} meses</p>
                         </div>
                       </div>
                     )}
