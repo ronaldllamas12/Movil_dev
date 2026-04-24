@@ -9,7 +9,7 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
-  const { carrito, isLoggedIn, logout, currentUser } = useCarrito(); 
+  const { carrito, isLoggedIn, logout, currentUser, cartError } = useCarrito();
   const { theme, toggleTheme } = useTheme();
   const isAdmin = currentUser?.role === 'administrador';
   
@@ -281,6 +281,12 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {cartError ? (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-[60] max-w-sm rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-lg">
+          {cartError}
+        </div>
+      ) : null}
     </nav>
   );
 }

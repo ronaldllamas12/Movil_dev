@@ -5,30 +5,19 @@ import os
 from typing import Any
 
 from auth.dependencies import get_current_admin, get_optional_current_user
-from cart.schemas import (
-    CartAddRequest,
-    CartAddResponse,
-    CartItemResponse,
-    CartTaxSettingsResponse,
-    CartTaxSettingsUpdate,
-    CartTotalResponse,
-)
-from cart.services import (
-    add_item_for_user,
-    compute_cart_totals,
-    get_or_create_cart_settings,
-    get_product_for_cart,
-    list_items_for_user,
-    remove_item_for_user,
-    set_cart_tax_percent,
-)
+from cart.schemas import (CartAddRequest, CartAddResponse, CartItemResponse,
+                          CartTaxSettingsResponse, CartTaxSettingsUpdate,
+                          CartTotalResponse)
+from cart.services import (add_item_for_user, compute_cart_totals,
+                           get_or_create_cart_settings, get_product_for_cart,
+                           list_items_for_user, remove_item_for_user,
+                           set_cart_tax_percent)
+from database.core.database import get_db
+from database.core.errors import ConflictError, NotFoundError
 from fastapi import APIRouter, Depends, Request, Response, status
 from products.models import Product
 from sqlalchemy.orm import Session
 from users.models import User
-
-from database.core.database import get_db
-from database.core.errors import ConflictError, NotFoundError
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
@@ -48,6 +37,18 @@ def _safe_int(value: str | None, default: int) -> int:
         return int(value) if value is not None else default
     except ValueError:
         return default
+
+
+def _safe_bool(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def _get_cart_tax_percent() -> float:
@@ -119,12 +120,22 @@ def _parse_guest_cart(request: Request) -> list[dict[str, Any]]:
 
 
 def _set_guest_cart_cookie(response: Response, items: list[dict[str, Any]]) -> None:
+    cookie_samesite = os.getenv("CART_COOKIE_SAMESITE", "lax").strip().lower()
+    if cookie_samesite not in {"lax", "strict", "none"}:
+        cookie_samesite = "lax"
+
+    cookie_secure = _safe_bool(os.getenv("CART_COOKIE_SECURE"), False)
+    if cookie_samesite == "none":
+        # SameSite=None requiere Secure=true para navegadores modernos.
+        cookie_secure = True
+
     response.set_cookie(
         key=COOKIE_NAME,
         value=json.dumps(items, separators=(",", ":")),
         max_age=COOKIE_MAX_AGE_SECONDS,
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
+        secure=cookie_secure,
     )
 
 

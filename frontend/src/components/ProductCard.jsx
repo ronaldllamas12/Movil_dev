@@ -1,12 +1,14 @@
 // components/ProductCard.jsx
+import { Eye, ShoppingCart, Star } from 'lucide-react';
 import { useState } from 'react';
-import { ShoppingCart, Star, Eye } from 'lucide-react';
 import { useCarrito } from '../context/CarritoContext';
 import ProductDetailModal from './ProductDetailModal';
 
 export default function ProductCard({ product }) {
   const { agregarAlCarrito } = useCarrito();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const stock = Number(product.cantidad_stock || 0);
+  const isOutOfStock = stock <= 0;
   const priceLabel =
     product.formattedPrice ??
     (product.precio != null && product.precio !== ''
@@ -54,23 +56,28 @@ export default function ProductCard({ product }) {
               <span className="text-sm text-gray-400 line-through">${product.oldPrice}</span>
             )}
           </div>
+
+          <p className={`pt-2 text-xs font-semibold ${isOutOfStock ? 'text-red-600' : stock <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+            {isOutOfStock ? 'Sin stock disponible' : `Stock disponible: ${stock} unidad${stock === 1 ? '' : 'es'}`}
+          </p>
         </div>
 
         {/* Botones */}
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex-1 bg-[color:var(--surface-hover)] text-[color:var(--text)] py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-600 hover:text-white transition-colors"
+            className="flex items-center gap-2 bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-red-600 active:scale-95 transition-all duration-200 shadow-sm"
           >
             <Eye className="size-4" />
             Detalles
           </button>
           <button
             onClick={() => agregarAlCarrito(product)}
-            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors"
+            disabled={isOutOfStock}
+            className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2 rounded-full active:scale-95 transition-all duration-200 shadow-sm ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}
           >
-            <ShoppingCart className="size-4 flex items-center justify-center" />
-            Añadir al carrito
+            <ShoppingCart className="size-4" />
+            {isOutOfStock ? 'Sin stock' : 'Añadir'}
           </button>
         </div>
       </div>

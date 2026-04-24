@@ -1,9 +1,9 @@
 // components/ProductDetailModal.jsx
-import { useState, useEffect } from 'react';
-import { X, ShoppingCart, Check, Wifi, Battery, Cpu, Camera, Zap, Shield, MemoryStick, HardDrive, Ruler } from 'lucide-react';
-import { useCarrito } from '../context/CarritoContext';
-import { getProductById } from '../api/services/productsService';
+import { Battery, Camera, Check, Cpu, HardDrive, MemoryStick, Ruler, Shield, ShoppingCart, Wifi, X, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { mapProductFromApi } from '../api/mappers/productMapper';
+import { getProductById } from '../api/services/productsService';
+import { useCarrito } from '../context/CarritoContext';
 
 export default function ProductDetailModal({ product, isOpen, onClose }) {
   const { agregarAlCarrito } = useCarrito();
@@ -55,17 +55,22 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
     'Verde': 'bg-green-600',
     'Marrón': 'bg-amber-800',
     'Violeta': 'bg-purple-600',
-    'Morado': 'bg-purple-700'
+    'Morado': 'bg-purple-700',
+    "rojo": 'bg-red-500'
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const productToAdd = {
       ...displayProduct,
       color_selected: selectedColor,
     };
-    agregarAlCarrito(productToAdd, quantity);
+    const wasAdded = await agregarAlCarrito(productToAdd, quantity);
+    if (!wasAdded) {
+      return;
+    }
+
     setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
+    window.setTimeout(() => setAddedToCart(false), 2000);
   };
 
   const handleQuantityChange = (delta) => {
@@ -78,7 +83,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+        <div className="fixed inset-0 bg-white bg-opacity-50" onClick={onClose} />
         <div className="relative min-h-screen flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-8 flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -92,17 +97,17 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-white bg-opacity-100 transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="relative bg-red rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
           {/* Botón cerrar */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            className="absolute top-4 right-4 z-10 p-2 bg-red-300 rounded-full shadow-lg hover:bg-red-500 transition-colors"
           >
             <X className="size-5" />
           </button>

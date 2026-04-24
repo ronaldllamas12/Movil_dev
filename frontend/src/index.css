@@ -168,4 +168,118 @@ body.dark .bg-transparent {
 body.dark .placeholder\:text-gray-400::placeholder {
   color: #94a3b8;
 }
+
+@keyframes heroTitleReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+    filter: blur(12px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes heroDescriptionReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes heroTitleGlow {
+  0%,
+  100% {
+    text-shadow: 0 0 18px rgba(148, 163, 184, 0.16), 0 10px 30px rgba(15, 23, 42, 0.22);
+  }
+
+  50% {
+    text-shadow: 0 0 32px rgba(125, 211, 252, 0.3), 0 16px 36px rgba(15, 23, 42, 0.34);
+  }
+}
+
+@keyframes heroCopyPanelReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+    backdrop-filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    backdrop-filter: blur(18px);
+  }
+}
+
+@keyframes heroAccentSweep {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.35);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.hero-copy-shell {
+  position: relative;
+  max-width: 42rem;
+  padding: 1.5rem 1.25rem;
+  border: none;
+  border-radius: 2rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  padding: 0.5rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  transition: all 300ms ease;
+}
+
+.btn-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+
+
+@media (max-width: 767px) {
+  .hero-copy-shell {
+    padding: 1.2rem 1rem;
+    border-radius: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy-shell,
+  .btn-nav {
+    animation: none;
+    transition: none;
+  }
+}
  
