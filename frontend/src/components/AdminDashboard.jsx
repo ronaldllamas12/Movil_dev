@@ -11,6 +11,7 @@ import {
     uploadProductImage,
 } from '../api/services/productsService';
 import { useCarrito } from '../context/CarritoContext';
+import Sidebar from './Sidebar';
 
 const CATEGORY_OPTIONS = ['premium', 'gama media', 'economico'];
 
@@ -319,6 +320,8 @@ export default function AdminDashboard() {
   const [taxRateInput, setTaxRateInput] = useState(String(cartSettings.taxRate));
   const [selectedDiscountReference, setSelectedDiscountReference] = useState('');
   const [discountPercentInput, setDiscountPercentInput] = useState('');
+
+  const [selectedModule, setSelectedModule] = useState('carrito');
 
   const isAdmin = currentUser?.role === 'administrador';
   const visibleProducts = useMemo(() => products.slice(0, 100), [products]);
@@ -652,277 +655,293 @@ export default function AdminDashboard() {
   }
 
   return (
-    <section className="max-w-6xl mx-auto px-6 py-10 space-y-6">
-      <header className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-cyan-50 p-6">
-        <div className="flex items-center gap-3 text-indigo-700 mb-2">
-          <Shield className="size-5" />
-          <p className="font-semibold">Panel de administración</p>
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Dashboard  de productos MOVIL-DEV</h1>
-        <p className="text-slate-600 mt-1">Gestiona inventario, estado, IVA del carrito y descuentos por referencia.</p>
-      </header>
-
-      {errorMsg ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMsg}</div>
-      ) : null}
-      {successMsg ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMsg}</div>
-      ) : null}
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
-        <div className="flex items-center gap-2 text-slate-800 font-semibold">
-          <Settings2 className="size-4" />
-          Configuración del carrito
-        </div>
-
-        <form onSubmit={handleSaveTaxRate} className="flex flex-col md:flex-row gap-3 md:items-end">
-          <label className="flex flex-col gap-1 text-sm text-slate-700 w-full md:max-w-xs">
-            Impuesto (IVA %)
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={taxRateInput}
-              onChange={(event) => setTaxRateInput(event.target.value)}
-              className="rounded-xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700"
-          >
-            Guardar impuesto
-          </button>
-        </form>
-
-        <form onSubmit={handleAddDiscountRule} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Producto a descontar
-            <select
-              value={selectedDiscountReference}
-              onChange={(event) => setSelectedDiscountReference(event.target.value)}
-              className="rounded-xl border border-slate-300 px-3 py-2"
-              disabled={products.length === 0}
-            >
-              {products.length === 0 ? (
-                <option value="">No hay productos disponibles</option>
-              ) : (
-                products.map((product) => (
-                  <option key={product.id} value={product.referencia}>
-                    {product.nombre} - {product.referencia}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Descuento (%)
-            <input
-              type="number"
-              min="0.01"
-              max="100"
-              step="0.01"
-              value={discountPercentInput}
-              onChange={(event) => setDiscountPercentInput(event.target.value)}
-              placeholder="Ej: 10"
-              className="rounded-xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-500"
-          >
-            Guardar descuento
-          </button>
-        </form>
-
-        <div className="rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">Descuentos activos por referencia</div>
-          <div className="divide-y divide-slate-100">
-            {(cartSettings.discountRules || []).length === 0 ? (
-              <p className="px-4 py-3 text-sm text-slate-500">No hay descuentos configurados.</p>
-            ) : (
-              (cartSettings.discountRules || []).map((rule) => (
-                <div key={rule.referencia} className="px-4 py-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-700">
-                    {(referenceToProductMap[rule.referencia]?.nombre || 'Producto')} - {rule.referencia} - {rule.porcentaje}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteDiscountRule(rule.referencia)}
-                    className="text-red-600 hover:text-red-700 font-medium"
-                  >
-                    Quitar
-                  </button>
-                </div>
-              ))
-            )}
+    <div className="flex max-w-7xl mx-auto px-2 py-10 gap-6">
+      <Sidebar selected={selectedModule} onSelect={setSelectedModule} />
+      <main className="flex-1 space-y-6">
+        <header className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-cyan-50 p-6">
+          <div className="flex items-center gap-3 text-indigo-700 mb-2">
+            <Shield className="size-5" />
+            <p className="font-semibold">Panel de administración</p>
           </div>
-        </div>
-      </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Dashboard de administración MOVIL-DEV</h1>
+          <p className="text-slate-600 mt-1">Gestiona inventario, estado, IVA del carrito y descuentos por referencia.</p>
+        </header>
 
-      <form onSubmit={handleCreateProduct} className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
-        <div className="flex items-center gap-2 text-slate-800 font-semibold">
-          <Plus className="size-4" />
-          Crear producto
-        </div>
-        <ProductFields form={createForm} onChange={handleFormInput(setCreateForm)} />
+        {errorMsg ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMsg}</div>
+        ) : null}
+        {successMsg ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMsg}</div>
+        ) : null}
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-          <p className="text-sm font-medium text-slate-800">Subir imagen de producto a Cloudinary</p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleCreateImageUpload}
-            disabled={isSaving || isUploadingCreateImage}
-            className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-          />
-          {isUploadingCreateImage ? (
-            <p className="text-sm text-slate-600 inline-flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" />
-              Subiendo imagen...
-            </p>
-          ) : null}
-          {createForm.imagen_url ? (
-            <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {createForm.imagen_url}</p>
-          ) : null}
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSaving || isUploadingCreateImage}
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700 disabled:opacity-60"
-        >
-          {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-          Guardar producto
-        </button>
-      </form>
-
-      {editingId ? (
-        <form onSubmit={handleUpdateProduct} className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        {selectedModule === 'carrito' && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
             <div className="flex items-center gap-2 text-slate-800 font-semibold">
-              <Pencil className="size-4" />
-              Editando producto #{editingId}
+              <Settings2 className="size-4" />
+              Configuración del carrito
             </div>
-            <button
-              type="button"
-              onClick={cancelEditing}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100"
-            >
-              Cancelar edición
-            </button>
-          </div>
-          <ProductFields form={editForm} onChange={handleFormInput(setEditForm)} />
 
-          <div className="rounded-2xl border border-blue-200 bg-white p-4 space-y-3">
-            <p className="text-sm font-medium text-slate-800">Subir nueva imagen a Cloudinary</p>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleEditImageUpload}
-              disabled={isSaving || isUploadingEditImage}
-              className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            />
-            {isUploadingEditImage ? (
-              <p className="text-sm text-slate-600 inline-flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
-                Subiendo imagen...
-              </p>
-            ) : null}
-            {editForm.imagen_url ? (
-              <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {editForm.imagen_url}</p>
-            ) : null}
-          </div>
+            <form onSubmit={handleSaveTaxRate} className="flex flex-col md:flex-row gap-3 md:items-end">
+              <label className="flex flex-col gap-1 text-sm text-slate-700 w-full md:max-w-xs">
+                Impuesto (IVA %)
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={taxRateInput}
+                  onChange={(event) => setTaxRateInput(event.target.value)}
+                  className="rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700"
+              >
+                Guardar impuesto
+              </button>
+            </form>
 
-          <button
-            type="submit"
-            disabled={isSaving || isUploadingEditImage}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-500 disabled:opacity-60"
-          >
-            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
-            Guardar cambios
-          </button>
-        </form>
-      ) : null}
+            <form onSubmit={handleAddDiscountRule} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                Producto a descontar
+                <select
+                  value={selectedDiscountReference}
+                  onChange={(event) => setSelectedDiscountReference(event.target.value)}
+                  className="rounded-xl border border-slate-300 px-3 py-2"
+                  disabled={products.length === 0}
+                >
+                  {products.length === 0 ? (
+                    <option value="">No hay productos disponibles</option>
+                  ) : (
+                    products.map((product) => (
+                      <option key={product.id} value={product.referencia}>
+                        {product.nombre} - {product.referencia}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                Descuento (%)
+                <input
+                  type="number"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  value={discountPercentInput}
+                  onChange={(event) => setDiscountPercentInput(event.target.value)}
+                  placeholder="Ej: 10"
+                  className="rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-500"
+              >
+                Guardar descuento
+              </button>
+            </form>
 
-      <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-800">Productos ({products.length})</h2>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="text-left px-4 py-3">ID</th>
-                <th className="text-left px-4 py-3">Referencia</th>
-                <th className="text-left px-4 py-3">Nombre</th>
-                <th className="text-left px-4 py-3">Categoría</th>
-                <th className="text-left px-4 py-3">Stock</th>
-                <th className="text-left px-4 py-3">Precio</th>
-                <th className="text-left px-4 py-3">Estado</th>
-                <th className="text-left px-4 py-3">Hero</th>
-                <th className="text-left px-4 py-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleProducts.map((product) => (
-                <tr key={product.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 text-slate-500">#{product.id}</td>
-                  <td className="px-4 py-3 text-slate-700">{product.referencia}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{product.nombre}</td>
-                  <td className="px-4 py-3">{product.categoria}</td>
-                  <td className="px-4 py-3">{product.cantidad_stock}</td>
-                  <td className="px-4 py-3">${Number(product.precio_unitario || 0).toLocaleString('es-CO')}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${product.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
-                      {product.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${product.is_featured ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700'}`}>
-                      {product.is_featured ? 'Destacado' : 'Normal'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
+            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">Descuentos activos por referencia</div>
+              <div className="divide-y divide-slate-100">
+                {(cartSettings.discountRules || []).length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-slate-500">No hay descuentos configurados.</p>
+                ) : (
+                  (cartSettings.discountRules || []).map((rule) => (
+                    <div key={rule.referencia} className="px-4 py-3 flex items-center justify-between text-sm">
+                      <span className="text-slate-700">
+                        {(referenceToProductMap[rule.referencia]?.nombre || 'Producto')} - {rule.referencia} - {rule.porcentaje}%
+                      </span>
                       <button
                         type="button"
-                        disabled={isSaving}
-                        onClick={() => startEditing(product)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                        onClick={() => handleDeleteDiscountRule(rule.referencia)}
+                        className="text-red-600 hover:text-red-700 font-medium"
                       >
-                        <Pencil className="size-3" />
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => handleToggleProduct(product)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-amber-300 px-3 py-1.5 text-amber-700 hover:bg-amber-50 disabled:opacity-60"
-                      >
-                        <Power className="size-3" />
-                        {product.is_active ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-60"
-                      >
-                        <Trash2 className="size-3" />
-                        Eliminar
+                        Quitar
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedModule === 'productos' && (
+          <>
+            <form onSubmit={handleCreateProduct} className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                <Plus className="size-4" />
+                Crear producto
+              </div>
+              <ProductFields form={createForm} onChange={handleFormInput(setCreateForm)} />
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <p className="text-sm font-medium text-slate-800">Subir imagen de producto a Cloudinary</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCreateImageUpload}
+                  disabled={isSaving || isUploadingCreateImage}
+                  className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+                {isUploadingCreateImage ? (
+                  <p className="text-sm text-slate-600 inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Subiendo imagen...
+                  </p>
+                ) : null}
+                {createForm.imagen_url ? (
+                  <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {createForm.imagen_url}</p>
+                ) : null}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSaving || isUploadingCreateImage}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700 disabled:opacity-60"
+              >
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                Guardar producto
+              </button>
+            </form>
+
+            {editingId ? (
+              <form onSubmit={handleUpdateProduct} className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                    <Pencil className="size-4" />
+                    Editando producto #{editingId}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancelar edición
+                  </button>
+                </div>
+                <ProductFields form={editForm} onChange={handleFormInput(setEditForm)} />
+
+                <div className="rounded-2xl border border-blue-200 bg-white p-4 space-y-3">
+                  <p className="text-sm font-medium text-slate-800">Subir nueva imagen a Cloudinary</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditImageUpload}
+                    disabled={isSaving || isUploadingEditImage}
+                    className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                  {isUploadingEditImage ? (
+                    <p className="text-sm text-slate-600 inline-flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      Subiendo imagen...
+                    </p>
+                  ) : null}
+                  {editForm.imagen_url ? (
+                    <p className="text-xs text-emerald-700 break-all">URL guardada automáticamente: {editForm.imagen_url}</p>
+                  ) : null}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSaving || isUploadingEditImage}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-500 disabled:opacity-60"
+                >
+                  {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
+                  Guardar cambios
+                </button>
+              </form>
+            ) : null}
+
+            <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200">
+                <h2 className="font-semibold text-slate-800">Productos ({products.length})</h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="text-left px-4 py-3">ID</th>
+                      <th className="text-left px-4 py-3">Referencia</th>
+                      <th className="text-left px-4 py-3">Nombre</th>
+                      <th className="text-left px-4 py-3">Categoría</th>
+                      <th className="text-left px-4 py-3">Stock</th>
+                      <th className="text-left px-4 py-3">Precio</th>
+                      <th className="text-left px-4 py-3">Estado</th>
+                      <th className="text-left px-4 py-3">Hero</th>
+                      <th className="text-left px-4 py-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleProducts.map((product) => (
+                      <tr key={product.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 text-slate-500">#{product.id}</td>
+                        <td className="px-4 py-3 text-slate-700">{product.referencia}</td>
+                        <td className="px-4 py-3 font-medium text-slate-800">{product.nombre}</td>
+                        <td className="px-4 py-3">{product.categoria}</td>
+                        <td className="px-4 py-3">{product.cantidad_stock}</td>
+                        <td className="px-4 py-3">${Number(product.precio_unitario || 0).toLocaleString('es-CO')}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${product.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+                            {product.is_active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${product.is_featured ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700'}`}>
+                            {product.is_featured ? 'Destacado' : 'Normal'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => startEditing(product)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                            >
+                              <Pencil className="size-3" />
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleToggleProduct(product)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 px-3 py-1.5 text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+                            >
+                              <Power className="size-3" />
+                              {product.is_active ? 'Desactivar' : 'Activar'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                            >
+                              <Trash2 className="size-3" />
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {selectedModule === 'pedidos' && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-slate-700 flex flex-col items-center justify-center min-h-[300px]">
+            <h2 className="text-xl font-bold mb-2">Gestión de Pedidos</h2>
+            <p className="text-slate-600">Próximamente disponible. Aquí podrás gestionar los pedidos realizados por los clientes.</p>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

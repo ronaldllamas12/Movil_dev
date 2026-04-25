@@ -36,7 +36,7 @@ export default function Navbar() {
       {/* Barra superior */}
       <div className="w-full bg-[color:var(--surface-muted)] text-[color:var(--muted)] text-xs py-2 px-4 md:px-10 flex justify-between items-center border-b border-[color:var(--border)]">
         <span>+54 11 1234-5678 | info@movildev.com</span>
-        <span className="hidden sm:inline">Envío gratis en compras superiores a $800.000</span>
+        <span className="hidden sm:inline">Envío gratis en compras superiores a $3000.000</span>
       </div>
 
       {/* Contenedor Principal */}
@@ -50,68 +50,62 @@ export default function Navbar() {
               className="h-20 w-20 object-contain"
             />
           </div>
-          <span className="font-bold text-2xl text-[color:var(--text)]">Móvil Dev</span>
+          <span className="text-3xl font-extrabold tracking-wide bg-gradient-to-r from-[#7c3aed] via-[#c026d3] to-[#ef4444] bg-clip-text text-transparent drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+          Movil Dev</span>
         </Link>
 
         {/* Links de Navegación Completos */}
-        <div className="hidden lg:flex items-center gap-6 font-medium">
-          <NavLink 
-            to="/" 
-            className={({ isActive }) => 
-              `transition ${isActive ? "text-purple-600 border-b-2 border-purple-600" : "text-slate-600 hover:text-purple-600"}`
-            }
-          >
-            Inicio
-          </NavLink>
-          
-          <NavLink 
-            to="/catalogo" 
-            end
-            className={({ isActive }) => 
-              `transition ${isActive ? "text-purple-600 border-b-2 border-purple-600" : "text-slate-600 hover:text-purple-600"}`
-            }
-          >
-            Catálogo
-          </NavLink>
-          
-          <NavLink 
-            to="/catalogo/premium" 
-            className={({ isActive }) => 
-              `transition ${isActive ? "text-purple-600 border-b-2 border-purple-600" : "text-slate-600 hover:text-purple-600"}`
-            }
-          >
-            Premium
-          </NavLink>
+        <div className="hidden lg:flex items-center gap-8 font-medium text-sm">
+  {[
+    { to: "/", label: "Inicio" },
+    { to: "/catalogo", label: "Catálogo", end: true },
+    { to: "/catalogo/premium", label: "Premium" },
+    { to: "/catalogo/gama-media", label: "Gama Media" },
+    { to: "/catalogo/economicos", label: "Económicos" }
+  ].map((link) => (
+    <NavLink key={link.to} to={link.to} end={link.end}>
+      {({ isActive }) => (
+        <span
+          className={`group relative px-3 py-1.5 rounded-lg transition-all duration-300 cursor-pointer
+          ${
+            isActive
+              ? "text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg shadow-purple-500/20"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+          }`}
+        >
+          {link.label}
 
-          <NavLink 
-            to="/catalogo/gama-media" 
-            className={({ isActive }) => 
-              `transition ${isActive ? "text-purple-600 border-b-2 border-purple-600" : "text-slate-600 hover:text-purple-600"}`
-            }
-          >
-            Gama Media
-          </NavLink>
+          {/* Línea animada */}
+          <span
+            className={`absolute left-0 -bottom-1 h-[2px] w-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300
+            ${
+              isActive
+                ? "opacity-100 scale-x-100"
+                : "opacity-0 scale-x-0 group-hover:scale-x-100"
+            }`}
+          />
+        </span>
+      )}
+    </NavLink>
+  ))}
 
-          <NavLink 
-            to="/catalogo/economicos" 
-            className={({ isActive }) => 
-              `transition ${isActive ? "text-purple-600 border-b-2 border-purple-600" : "text-slate-600 hover:text-purple-600"}`
-            }
-          >
-            Económicos
-          </NavLink>
-
-          {isLoggedIn && isAdmin && (
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                `transition ${isActive ? 'text-purple-600 border-b-2 border-purple-600' : 'text-slate-600 hover:text-purple-600'}`
-              }
-            >
-              Dashboard
-            </NavLink>
-          )}
-        </div>
+  {isLoggedIn && isAdmin && (
+    <NavLink to="/dashboard">
+      {({ isActive }) => (
+        <span
+          className={`group relative px-3 py-1.5 rounded-lg transition-all duration-300 cursor-pointer
+          ${
+            isActive
+              ? "text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-red-500/20"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+          }`}
+        >
+          Dashboard
+        </span>
+      )}
+    </NavLink>
+  )}
+</div>
 
         {/* Buscador */}
         <div className="flex-1 max-w-md relative hidden sm:block">
