@@ -63,46 +63,37 @@ export default function Navbar() {
     { to: "/catalogo/gama-media", label: "Gama Media" },
     { to: "/catalogo/economicos", label: "Económicos" }
   ].map((link) => (
-    <NavLink key={link.to} to={link.to} end={link.end}>
-      {({ isActive }) => (
-        <span
-          className={`group relative px-3 py-1.5 rounded-lg transition-all duration-300 cursor-pointer
-          ${
-            isActive
-              ? "text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg shadow-purple-500/20"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
-        >
-          {link.label}
-
-          {/* Línea animada */}
-          <span
-            className={`absolute left-0 -bottom-1 h-[2px] w-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300
-            ${
-              isActive
-                ? "opacity-100 scale-x-100"
-                : "opacity-0 scale-x-0 group-hover:scale-x-100"
-            }`}
-          />
-        </span>
-      )}
+    <NavLink
+      key={link.to}
+      to={link.to}
+      end={link.end}
+      className={({ isActive }) =>
+        `relative px-4 py-2 rounded-lg transition-all duration-300
+        flex items-center
+        ${
+          isActive
+            ? "text-white bg-gradient-to-r from-purple-600 to-black shadow-lg shadow-purple-500/20"
+            : "text-slate-400 hover:text-black hover:bg-white/5"
+        }`
+      }
+    >
+      {link.label}
     </NavLink>
   ))}
 
   {isLoggedIn && isAdmin && (
-    <NavLink to="/dashboard">
-      {({ isActive }) => (
-        <span
-          className={`group relative px-3 py-1.5 rounded-lg transition-all duration-300 cursor-pointer
-          ${
-            isActive
-              ? "text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-red-500/20"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
-        >
-          Dashboard
-        </span>
-      )}
+    <NavLink
+      to="/dashboard"
+      className={({ isActive }) =>
+        `px-4 py-2 rounded-lg transition-all duration-300 flex items-center
+        ${
+          isActive
+            ? "text-white bg-gradient-to-r from-purple-500 to-black shadow-lg shadow-purple-500/20"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+        }`
+      }
+    >
+      Dashboard
     </NavLink>
   )}
 </div>
@@ -120,7 +111,7 @@ export default function Navbar() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar celulares..." 
-              className="w-full bg-[color:var(--surface-muted)] border border-[color:var(--border)] rounded-full py-2 px-5 pl-12 focus:ring-2 focus:ring-purple-500 outline-none text-[color:var(--text)]"
+              className="w-full bg-[color:var(--surface-muted)] border border-[color:var(--border)] rounded-full py-2 px-5 pl-12 focus:ring-2 focus:ring-purple-600 outline-none text-[color:var(--text)]"
             />
           </form>
           <Search className="absolute left-4 top-2.5 text-[color:var(--muted)] size-5" />
