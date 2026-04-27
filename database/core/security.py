@@ -2,12 +2,20 @@
 
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 
-JWT_SECRET = os.getenv("APP_JWT_SECRET", "secret-key")  # En
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
+
+JWT_SECRET = os.getenv("APP_JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("APP_JWT_SECRET debe estar configurado en el entorno.")
+
 JWT_ALGORITHM = os.getenv("APP_JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_MINUTES = int(os.getenv("APP_JWT_EXPIRATION", "60"))
 

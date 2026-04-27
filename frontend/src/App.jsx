@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { toProductCardModel } from './api/mappers/productMapper';
 import { getProducts } from './api/services/productsService';
 import AdminDashboard from './components/AdminDashboard';
+import Cancel from './components/Cancel';
 import Carrito from './components/Carrito';
 import Catalogo from './components/Catalogo';
 import Categories from './components/categories';
+import CheckoutSteps from './components/CheckoutSteps';
 import ContactBanner from './components/ContactBanner';
 import Features from './components/Features';
 import Footer from './components/Footer';
@@ -15,6 +16,7 @@ import Login from './components/Login';
 import Navbar from './components/Navbar';
 import Perfil from './components/Perfil';
 import ProductCard from './components/ProductCard';
+import Success from './components/Success';
 import { CarritoProvider } from './context/CarritoContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -25,8 +27,12 @@ const productsFallback = [
   { id: 3, marca: 'Google', nombre: 'Pixel 8 Pro', precio: '899', oldPrice: '999', discount: 10, rating: 4.6, reviews: 198, image: 'https://placehold.co/400x400?text=Pixel+8+Pro' },
   { id: 4, marca: 'Xiaomi', nombre: '14 Ultra', precio: '999', oldPrice: '1,099', discount: 9, rating: 4.5, reviews: 150, image: 'https://placehold.co/400x400?text=Xiaomi+14+Ultra' },
 ];
+
+import { useCarrito } from './context/CarritoContext';
+
 function App() {
   const [products, setProducts] = useState(productsFallback);
+  const { currentUser } = useCarrito();
 
   useEffect(() => {
     let isMounted = true;
@@ -111,6 +117,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/carrito" element={<Carrito />} />
+          <Route path="/checkout-steps" element={<CheckoutSteps currentUser={currentUser} />} />
+          <Route path="/success" element={<Success />} />
+          <Route path="/cancel" element={<Cancel />} />
         </Routes>
       </main>
 

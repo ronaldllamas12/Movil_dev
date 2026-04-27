@@ -361,6 +361,25 @@ export const CarritoProvider = ({ children }) => {
     [carrito],
   );
 
+  // Limpiar carrito (guest y server)
+  const limpiarCarrito = async () => {
+    if (!isLoggedIn) {
+      clearGuestCart();
+      refreshGuestCart();
+      return;
+    }
+    // Para server: eliminar todos los items uno a uno
+    try {
+      setIsCartLoading(true);
+      for (const item of carrito) {
+        await removeFromCart(item.id);
+      }
+      await refreshServerCart();
+    } finally {
+      setIsCartLoading(false);
+    }
+  };
+
   return (
     <CarritoContext.Provider
       value={{
@@ -388,6 +407,7 @@ export const CarritoProvider = ({ children }) => {
         login,
         logout,
         refreshCurrentUser,
+        limpiarCarrito,
       }}
     >
       {children}

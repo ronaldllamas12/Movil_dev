@@ -9,6 +9,7 @@ from auth.schemas import (
     RegisterRequest,
     ResetPasswordRequest,
     SetPasswordRequest,
+    ShippingProfileRequest,
     TokenResponse,
     UserLogin,
 )
@@ -166,6 +167,29 @@ async def upload_my_avatar(
     upload_result = await upload_image_to_cloudinary(file, folder="movil-dev/avatars")
 
     user.avatar_url = upload_result["url"]
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return UserResponse.model_validate(user, from_attributes=True)
+
+
+@router.patch("/me/shipping", response_model=UserResponse)
+def update_my_shipping_profile(
+    payload: ShippingProfileRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Guarda o actualiza la informacion de envio frecuente del usuario."""
+    preferences = dict(user.preferences or {})
+    preferences["shipping"] = {
+        "receiver_name": payload.receiver_name.strip(),
+        "phone": payload.phone.strip(),
+        "address": payload.address.strip(),
+        "city": payload.city.strip(),
+    }
+
+    user.preferences = preferences
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -58,3 +58,12 @@ class SetPasswordRequest(BaseModel):
 
     new_password: str = Field(..., min_length=8, max_length=200)
     current_password: str | None = Field(default=None, min_length=8, max_length=200)
+
+
+class ShippingProfileRequest(BaseModel):
+    """Datos de envio guardados en el perfil del usuario."""
+
+    receiver_name: str = Field(..., min_length=2, max_length=200)
+    phone: str = Field(..., min_length=7, max_length=30)
+    address: str = Field(..., min_length=4, max_length=300)
+    city: str = Field(..., min_length=2, max_length=120)

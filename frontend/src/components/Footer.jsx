@@ -1,6 +1,6 @@
+import { FaFacebook, FaInstagram, FaTwitter, FaYoutube } from 'react-icons/fa';
+import { MdEmail, MdLocationOn, MdPhone } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
-import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
-import { MdEmail, MdPhone, MdLocationOn } from 'react-icons/md';
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -12,7 +12,11 @@ export default function Footer() {
           {/* Columna 1: Logo e Info */}
           <div className="space-y-6">
             <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg font-bold text-sm">MD</div>
+              <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg font-bold text-sm"><img
+              src="https://res.cloudinary.com/dms34zmay/image/upload/v1776569393/ralrhgihg9xbf0k3okg3.png"
+              alt="logo"
+              className="h-20 w-20 object-contain"
+            /></div>
               <span className="text-2xl font-bold">Móvil Dev</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">

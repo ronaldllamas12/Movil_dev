@@ -38,12 +38,13 @@ def test_add_and_remove_product(client):
 
 HACER DENTRO DEL BACKEND:
 # app.py
+import os
 from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'supersecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@localhost/cartdb'
+app.config['SECRET_KEY'] = os.environ['APP_JWT_SECRET']
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 db = SQLAlchemy(app)
 
 # Modelo de carrito

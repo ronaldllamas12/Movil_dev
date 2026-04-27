@@ -72,6 +72,17 @@ export async function uploadAvatar(file) {
   return response.data;
 }
 
+export async function updateShippingProfile({ receiverName, phone, address, city }) {
+  const response = await apiClient.patch('/auth/me/shipping', {
+    receiver_name: receiverName,
+    phone,
+    address,
+    city,
+  });
+
+  return response.data;
+}
+
 export async function forgotPassword(email) {
   const response = await apiClient.post('/auth/forgot-password', {
     email,

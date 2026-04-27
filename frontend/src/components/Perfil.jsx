@@ -1,8 +1,8 @@
-import { Eye, EyeOff, LogOut, Mail, Shield, Upload, User } from 'lucide-react';
+import { Eye, EyeOff, Home, LogOut, Mail, MapPin, Phone, Shield, Upload, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/axiosClient';
-import { updatePassword, uploadAvatar } from '../api/services/authService';
+import { updatePassword, updateShippingProfile, uploadAvatar } from '../api/services/authService';
 import { useCarrito } from '../context/CarritoContext';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Usuario&background=E2E8F0&color=334155&size=256';
@@ -18,9 +18,19 @@ export default function Perfil() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingShipping, setIsSavingShipping] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [shippingForm, setShippingForm] = useState(() => {
+    const shipping = currentUser?.preferences?.shipping || {};
+    return {
+      receiverName: shipping.receiver_name || currentUser?.full_name || '',
+      phone: shipping.phone || '',
+      address: shipping.address || '',
+      city: shipping.city || '',
+    };
+  });
   const avatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +38,16 @@ export default function Perfil() {
       navigate('/login');
     }
   }, [isAuthLoading, isLoggedIn, navigate]);
+
+  useEffect(() => {
+    const shipping = currentUser?.preferences?.shipping || {};
+    setShippingForm({
+      receiverName: shipping.receiver_name || currentUser?.full_name || '',
+      phone: shipping.phone || '',
+      address: shipping.address || '',
+      city: shipping.city || '',
+    });
+  }, [currentUser]);
 
   if (isAuthLoading || !isLoggedIn) {
     return null;
@@ -107,6 +127,43 @@ export default function Perfil() {
     }
   };
 
+  const handleShippingChange = (event) => {
+    const { name, value } = event.target;
+    setShippingForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleShippingSubmit = async (event) => {
+    event.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!shippingForm.receiverName.trim()) {
+      setErrorMsg('El nombre de quien recibe es obligatorio.');
+      return;
+    }
+
+    if (shippingForm.phone.trim().length < 7) {
+      setErrorMsg('El número telefónico debe tener al menos 7 caracteres.');
+      return;
+    }
+
+    if (!shippingForm.address.trim() || !shippingForm.city.trim()) {
+      setErrorMsg('La dirección y la ciudad son obligatorias.');
+      return;
+    }
+
+    setIsSavingShipping(true);
+    try {
+      await updateShippingProfile(shippingForm);
+      await refreshCurrentUser();
+      setSuccessMsg('Información de envío actualizada correctamente.');
+    } catch (error) {
+      setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setIsSavingShipping(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -182,6 +239,85 @@ export default function Perfil() {
               </p>
             </div>
           </div>
+
+          <div className="mt-8">
+            <h3 className="text-xl font-bold text-[color:var(--text)]">Información de envío</h3>
+            <p className="mt-2 text-sm text-[color:var(--muted)]">
+              Estos datos se usarán automáticamente en tus próximas compras.
+            </p>
+          </div>
+
+          <form onSubmit={handleShippingSubmit} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block text-sm font-medium text-[color:var(--text)]">
+              Persona que recibe
+              <div className="mt-2 relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
+                <input
+                  name="receiverName"
+                  value={shippingForm.receiverName}
+                  onChange={handleShippingChange}
+                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                  placeholder="Nombre completo"
+                  required
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm font-medium text-[color:var(--text)]">
+              Teléfono
+              <div className="mt-2 relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
+                <input
+                  name="phone"
+                  value={shippingForm.phone}
+                  onChange={handleShippingChange}
+                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                  placeholder="3101234567"
+                  required
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm font-medium text-[color:var(--text)] md:col-span-2">
+              Dirección
+              <div className="mt-2 relative">
+                <Home className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
+                <input
+                  name="address"
+                  value={shippingForm.address}
+                  onChange={handleShippingChange}
+                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                  placeholder="Calle, carrera, número, apartamento"
+                  required
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm font-medium text-[color:var(--text)]">
+              Ciudad
+              <div className="mt-2 relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
+                <input
+                  name="city"
+                  value={shippingForm.city}
+                  onChange={handleShippingChange}
+                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                  placeholder="Ciudad"
+                  required
+                />
+              </div>
+            </label>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                disabled={isSavingShipping}
+                className="w-full rounded-2xl bg-purple-700 py-3 px-6 text-sm font-semibold text-white transition hover:bg-purple-800 disabled:opacity-70"
+              >
+                {isSavingShipping ? 'Guardando...' : 'Guardar envío'}
+              </button>
+            </div>
+          </form>
 
           <div className="mt-8">
             <h3 className="text-xl font-bold text-[color:var(--text)]">

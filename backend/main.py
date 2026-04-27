@@ -4,10 +4,14 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Evita colisión con el paquete externo `auth` (site-packages) asegurando
 # que el `backend/` local quede primero en sys.path cuando ejecutamos `uvicorn main:app`.
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND_DIR.parent
+load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv(BACKEND_DIR / ".env", override=False)
 for path in (BACKEND_DIR, PROJECT_ROOT):
     path_str = str(path)
     if path_str not in sys.path:
@@ -23,6 +27,7 @@ from database.core.errors import (AppError, ConflictError, ForbiddenError,
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from payments.router import router as payments_router
 from products.models import Product
 from products.router import router as products_router
 
@@ -113,3 +118,4 @@ async def startup_db() -> None:
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
+app.include_router(payments_router)
