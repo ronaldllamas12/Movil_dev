@@ -20,16 +20,17 @@ for path in (BACKEND_DIR, PROJECT_ROOT):
 from auth.router import router as auth_router
 from cart.models import CartItem
 from cart.router import router as cart_router
-from database.core.database import (Base, ensure_products_new_columns,
-                                    ensure_user_role_column, get_engine)
-from database.core.errors import (AppError, ConflictError, ForbiddenError,
-                                  NotFoundError, UnauthorizedError)
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from payments.router import router as payments_router
 from products.models import Product
 from products.router import router as products_router
+
+from database.core.database import (Base, ensure_products_new_columns,
+                                    ensure_user_role_column, get_engine)
+from database.core.errors import (AppError, ConflictError, ForbiddenError,
+                                  NotFoundError, UnauthorizedError)
 
 
 def _parse_cors_origins() -> list[str]:
@@ -49,6 +50,7 @@ def _parse_cors_origins() -> list[str]:
         "http://127.0.0.1:5173",
         "http://localhost:5173",
         "https://movil-dev.vercel.app",
+        "https://movil-dev.onrender.com"
     ]
 
 
@@ -118,4 +120,5 @@ async def startup_db() -> None:
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
+app.include_router(payments_router)
 app.include_router(payments_router)
