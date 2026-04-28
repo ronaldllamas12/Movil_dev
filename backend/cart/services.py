@@ -142,9 +142,11 @@ def compute_cart_totals(
     shipping_fee: float,
 ) -> CartTotals:
     """Calcula subtotal, impuestos y total a partir de los ítems."""
-    subtotal = sum(item.line_total for item in items)
-    tax_amount = subtotal * (tax_percent / 100)
-    total = subtotal + tax_amount + shipping_fee
+    # El precio de venta incluye IVA, separamos el neto y el impuesto
+    total_con_iva = sum(item.line_total for item in items)
+    subtotal = total_con_iva / (1 + tax_percent / 100) if tax_percent > 0 else total_con_iva
+    tax_amount = total_con_iva - subtotal
+    total = total_con_iva + shipping_fee
 
     return CartTotals(
         item_count=sum(item.quantity for item in items),
