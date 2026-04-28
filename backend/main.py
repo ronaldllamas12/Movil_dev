@@ -121,4 +121,9 @@ app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
 app.include_router(payments_router)
-app.include_router(payments_router)
+
+# Importa y registra el router de órdenes
+from orders.router import router as orders_router
+
+app.include_router(orders_router)
+app.include_router(orders_router)

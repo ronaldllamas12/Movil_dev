@@ -14,6 +14,10 @@ import { useCarrito } from '../context/CarritoContext';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
+function getPostLoginPath(user) {
+  return user?.role === 'administrador' ? '/dashboard' : '/';
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,7 +54,7 @@ export default function Login() {
     try {
       const data = await loginWithGoogle(response.credential);
       login(data.user);
-      navigate('/');
+      navigate(getPostLoginPath(data.user));
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
     } finally {
@@ -167,7 +171,7 @@ export default function Login() {
     try {
       const data = await loginUser({ email, password });
       login(data.user);
-      navigate('/');
+      navigate(getPostLoginPath(data.user));
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
     } finally {
@@ -190,7 +194,7 @@ export default function Login() {
       await registerUser({ email, password, fullName: name });
       const data = await loginUser({ email, password });
       login(data.user);
-      navigate('/');
+      navigate(getPostLoginPath(data.user));
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
     } finally {

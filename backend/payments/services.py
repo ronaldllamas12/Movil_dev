@@ -125,6 +125,10 @@ def build_invoice(user: User, provider: str) -> str:
     return f"MD-{provider.upper()}-{user.id}-{int(time.time())}"
 
 
+def build_internal_reference(user: User, provider: str) -> str:
+    return f"{provider.upper()}-{user.id}-{int(time.time())}"
+
+
 def build_paypal_amount(cop_total: float) -> tuple[str, str]:
     currency = _env("PAYPAL_CURRENCY", "USD").upper()
     total = Decimal(str(cop_total))
@@ -208,15 +212,14 @@ def create_paypal_order(
 ) -> dict[str, str]:
     cart_total = get_user_cart_total(db, user)
     amount, currency = build_paypal_amount(cart_total)
-    invoice = build_invoice(user, "paypal")
+    reference = build_internal_reference(user, "paypal")
     access_token = _paypal_access_token()
 
     payload = {
         "intent": "CAPTURE",
         "purchase_units": [
             {
-                "invoice_id": invoice,
-                "custom_id": str(user.id),
+                "custom_id": reference,
                 "description": "Compra en Movil Dev",
                 "amount": {"currency_code": currency, "value": amount},
                 "shipping": {
@@ -231,7 +234,7 @@ def create_paypal_order(
         ],
         "application_context": {
             "brand_name": "Movil Dev",
-            "landing_page": "LOGIN",
+            "landing_page": "NO_PREFERENCE",
             "user_action": "PAY_NOW",
             "return_url": f"{_frontend_url()}/success?provider=paypal",
             "cancel_url": f"{_frontend_url()}/cancel",
@@ -265,7 +268,7 @@ def create_paypal_order(
         "url": approve_url,
         "amount": amount,
         "currency": currency,
-        "invoice": invoice,
+        "invoice": reference,
     }
 
 

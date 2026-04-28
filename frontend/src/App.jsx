@@ -17,7 +17,6 @@ import Navbar from './components/Navbar';
 import Perfil from './components/Perfil';
 import ProductCard from './components/ProductCard';
 import Success from './components/Success';
-import { CarritoProvider } from './context/CarritoContext';
 import { ThemeProvider } from './context/ThemeContext';
 
 // Datos de prueba (Luego vendrán de tu backend)
@@ -59,7 +58,6 @@ function App() {
 
   return (
     <ThemeProvider>
-      <CarritoProvider>
         <div className="w-full min-h-screen bg-[color:var(--bg)] text-[color:var(--text)] transition-colors duration-300">
           <Navbar />
 
@@ -125,7 +123,6 @@ function App() {
 
       <Footer />
     </div>
-    </CarritoProvider>
     </ThemeProvider>
   );
 }
