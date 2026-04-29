@@ -1,5 +1,5 @@
 import { Loader2, Pencil, Plus, Power, Settings2, Shield, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCartTaxSettings, updateCartTaxSettings } from '../api/services/cartService';
 import {
@@ -1012,7 +1012,7 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {orders.map((order) => (
-                        <>
+                        <React.Fragment key={`order-group-${order.id}`}>
                           <tr key={`order-${order.id}`} className="border-t border-slate-100">
                             <td className="px-4 py-3 text-slate-500">#{order.id}</td>
                             <td className="px-4 py-3 text-slate-700">Usuario #{order.user_id}</td>
@@ -1114,7 +1114,7 @@ export default function AdminDashboard() {
                               </td>
                             </tr>
                           ) : null}
-                        </>
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

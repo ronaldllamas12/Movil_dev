@@ -65,11 +65,11 @@ def update_order_status_admin(order_id: int, request: UpdateStatusRequest, curre
     update_order_status(db, order_id, request.status)
     return {"success": True}
 
-@router.get("/admin/{order_id}/items", response_model=List[OrderSchema])
+@router.get("/admin/{order_id}/items", response_model=OrderSchema)
 def get_order_items_admin(order_id: int, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Obtiene los items de una orden para administradores."""
+    """Obtiene la orden (incluyendo sus items) para administradores."""
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         from database.core.errors import NotFoundError
         raise NotFoundError(f"Orden {order_id} no encontrada.")
-    return [order]
+    return order
