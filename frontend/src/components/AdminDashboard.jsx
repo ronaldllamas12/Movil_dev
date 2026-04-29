@@ -10,6 +10,7 @@ import {
     updateProduct,
     uploadProductImage,
 } from '../api/services/productsService';
+import { getAllOrders, updateOrderStatus } from '../api/services/ordersService';
 import { useCarrito } from '../context/CarritoContext';
 import Sidebar from './Sidebar';
 
@@ -323,6 +324,9 @@ export default function AdminDashboard() {
 
   const [selectedModule, setSelectedModule] = useState('carrito');
 
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
   const isAdmin = currentUser?.role === 'administrador';
   const visibleProducts = useMemo(() => products.slice(0, 100), [products]);
   const referenceToProductMap = useMemo(() => {
@@ -408,6 +412,28 @@ export default function AdminDashboard() {
       setSelectedDiscountReference(products[0].referencia);
     }
   }, [products, selectedDiscountReference]);
+
+  useEffect(() => {
+    if (!isAdmin || selectedModule !== 'pedidos') {
+      return;
+    }
+
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      setErrorMsg('');
+
+      try {
+        const data = await getAllOrders();
+        setOrders(data);
+      } catch (error) {
+        setErrorMsg(error?.response?.data?.detail || 'No se pudieron cargar las órdenes.');
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+
+    loadOrders();
+  }, [isAdmin, selectedModule]);
 
   const resetMessages = () => {
     setErrorMsg('');
@@ -637,6 +663,21 @@ export default function AdminDashboard() {
     const nextRules = (cartSettings.discountRules || []).filter((item) => item.referencia !== referencia);
     updateCartSettings({ discountRules: nextRules });
     setSuccessMsg('Descuento eliminado correctamente.');
+  };
+
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    resetMessages();
+    setIsSaving(true);
+
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)));
+      setSuccessMsg('Estado de la orden actualizado correctamente.');
+    } catch (error) {
+      setErrorMsg(error?.response?.data?.detail || 'No se pudo actualizar el estado de la orden.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isAuthLoading || isLoading) {
@@ -936,10 +977,101 @@ export default function AdminDashboard() {
         )}
 
         {selectedModule === 'pedidos' && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-slate-700 flex flex-col items-center justify-center min-h-[300px]">
-            <h2 className="text-xl font-bold mb-2">Gestión de Pedidos</h2>
-            <p className="text-slate-600">Próximamente disponible. Aquí podrás gestionar los pedidos realizados por los clientes.</p>
-          </div>
+          <>
+            <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200">
+                <h2 className="font-semibold text-slate-800">Pedidos ({orders.length})</h2>
+              </div>
+
+              {ordersLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="size-5 animate-spin mx-auto mb-2" />
+                  Cargando pedidos...
+                </div>
+              ) : orders.length === 0 ? (
+                <p className="px-6 py-8 text-sm text-slate-500">No hay pedidos registrados.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="text-left px-4 py-3">ID</th>
+                        <th className="text-left px-4 py-3">Usuario</th>
+                        <th className="text-left px-4 py-3">Fecha</th>
+                        <th className="text-left px-4 py-3">Estado</th>
+                        <th className="text-left px-4 py-3">Subtotal</th>
+                        <th className="text-left px-4 py-3">Impuestos</th>
+                        <th className="text-left px-4 py-3">Total</th>
+                        <th className="text-left px-4 py-3">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map((order) => (
+                        <tr key={order.id} className="border-t border-slate-100">
+                          <td className="px-4 py-3 text-slate-500">#{order.id}</td>
+                          <td className="px-4 py-3 text-slate-700">Usuario #{order.user_id}</td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {new Date(order.created_at).toLocaleDateString('es-CO')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                              order.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                              order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                              'bg-slate-200 text-slate-700'
+                            }`}>
+                              {order.status === 'pending' ? 'Pendiente' :
+                               order.status === 'paid' ? 'Pagado' :
+                               order.status === 'shipped' ? 'Enviado' :
+                               order.status === 'cancelled' ? 'Cancelado' :
+                               order.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">${Number(order.subtotal || 0).toLocaleString('es-CO')}</td>
+                          <td className="px-4 py-3">${Number(order.tax || 0).toLocaleString('es-CO')}</td>
+                          <td className="px-4 py-3 font-semibold">${Number(order.total || 0).toLocaleString('es-CO')}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {order.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  disabled={isSaving}
+                                  onClick={() => handleUpdateOrderStatus(order.id, 'paid')}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-3 py-1.5 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                                >
+                                  Marcar Pagado
+                                </button>
+                              )}
+                              {order.status === 'paid' && (
+                                <button
+                                  type="button"
+                                  disabled={isSaving}
+                                  onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-blue-300 px-3 py-1.5 text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                                >
+                                  Enviar
+                                </button>
+                              )}
+                              {order.status !== 'cancelled' && order.status !== 'shipped' && (
+                                <button
+                                  type="button"
+                                  disabled={isSaving}
+                                  onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
     </div>

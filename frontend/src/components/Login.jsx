@@ -42,10 +42,96 @@ export default function Login() {
   const [googleScriptError, setGoogleScriptError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Estados para validaciones en registro
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  
   const googleButtonRef = useRef(null);
   const googleButtonRegisterRef = useRef(null);
   const googleInitializedRef = useRef(false);
   const isGoogleEnabled = Boolean(GOOGLE_CLIENT_ID);
+
+  // Funciones de validación
+  const validateEmail = (emailValue) => {
+    if (!emailValue.trim()) {
+      return 'El email es requerido';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+      return 'El email debe tener un formato válido (ejemplo: usuario@dominio.com)';
+    }
+    return '';
+  };
+
+  const validatePassword = (passwordValue) => {
+    if (!passwordValue) {
+      return 'La contraseña es requerida';
+    }
+    if (passwordValue.length < 8) {
+      return `La contraseña debe tener al menos 8 caracteres (tienes ${passwordValue.length})`;
+    }
+    return '';
+  };
+
+  const validateName = (nameValue) => {
+    if (!nameValue.trim()) {
+      return 'El nombre es requerido';
+    }
+    if (nameValue.trim().length < 2) {
+      return `El nombre debe tener al menos 2 caracteres (tienes ${nameValue.trim().length})`;
+    }
+    return '';
+  };
+
+  const validateConfirmPassword = (pwd, confirmPwd) => {
+    if (!confirmPwd) {
+      return 'Confirmar contraseña es requerido';
+    }
+    if (pwd !== confirmPwd) {
+      return 'Las contraseñas no coinciden';
+    }
+    return '';
+  };
+
+  const handleNameChange = (value) => {
+    setName(value);
+    setNameError(validateName(value));
+  };
+
+  const handleEmailChange = (value) => {
+    setEmail(value);
+    setEmailError(validateEmail(value));
+  };
+
+  const handlePasswordChange = (value) => {
+    setPassword(value);
+    setPasswordError(validatePassword(value));
+    // También validar confirmPassword si ya tiene contenido
+    if (confirmPassword) {
+      setConfirmPasswordError(validateConfirmPassword(value, confirmPassword));
+    }
+  };
+
+  const handleConfirmPasswordChange = (value) => {
+    setConfirmPassword(value);
+    setConfirmPasswordError(validateConfirmPassword(password, value));
+  };
+
+  const isRegisterFormValid = () => {
+    return (
+      !nameError &&
+      !emailError &&
+      !passwordError &&
+      !confirmPasswordError &&
+      name.trim() &&
+      email.trim() &&
+      password &&
+      confirmPassword
+    );
+  };
 
   const handleGoogleCredential = async (response) => {
     setIsSubmitting(true);
@@ -182,8 +268,18 @@ export default function Login() {
   const handleRegister = async (event) => {
     event.preventDefault();
 
-    if (password !== confirmPassword) {
-      setErrorMsg('Las contrasenas no coinciden.');
+    // Validar una vez más antes de enviar
+    const nameErr = validateName(name);
+    const emailErr = validateEmail(email);
+    const passwordErr = validatePassword(password);
+    const confirmPasswordErr = validateConfirmPassword(password, confirmPassword);
+
+    setNameError(nameErr);
+    setEmailError(emailErr);
+    setPasswordError(passwordErr);
+    setConfirmPasswordError(confirmPasswordErr);
+
+    if (nameErr || emailErr || passwordErr || confirmPasswordErr) {
       return;
     }
 
@@ -194,6 +290,17 @@ export default function Login() {
       await registerUser({ email, password, fullName: name });
       const data = await loginUser({ email, password });
       login(data.user);
+      
+      // Limpiar formulario
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setNameError('');
+      setEmailError('');
+      setPasswordError('');
+      setConfirmPasswordError('');
+      
       navigate(getPostLoginPath(data.user));
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
@@ -443,12 +550,21 @@ export default function Login() {
                       <input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Tu nombre"
-                        className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        placeholder="Tu nombre completo"
+                        className={`w-full rounded-2xl border bg-[color:var(--surface-muted)] py-3 pl-12 pr-4 text-[color:var(--text)] outline-none transition ${
+                          nameError
+                            ? 'border-red-500 focus:border-red-600'
+                            : 'border-[color:var(--border)] focus:border-purple-600'
+                        }`}
                         required
                       />
                     </div>
+                    {nameError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <span className="inline-block">✕</span> {nameError}
+                      </p>
+                    )}
                   </label>
 
                   <label className="block text-sm font-medium text-[color:var(--text)]">
@@ -458,12 +574,21 @@ export default function Login() {
                       <input
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => handleEmailChange(e.target.value)}
                         placeholder="tu@email.com"
-                        className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                        className={`w-full rounded-2xl border bg-[color:var(--surface-muted)] py-3 pl-12 pr-4 text-[color:var(--text)] outline-none transition ${
+                          emailError
+                            ? 'border-red-500 focus:border-red-600'
+                            : 'border-[color:var(--border)] focus:border-purple-600'
+                        }`}
                         required
                       />
                     </div>
+                    {emailError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <span className="inline-block">✕</span> {emailError}
+                      </p>
+                    )}
                   </label>
 
                   <label className="block text-sm font-medium text-[color:var(--text)]">
@@ -473,9 +598,13 @@ export default function Login() {
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="********"
-                        className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                        onChange={(e) => handlePasswordChange(e.target.value)}
+                        placeholder="Mínimo 8 caracteres"
+                        className={`w-full rounded-2xl border bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition ${
+                          passwordError
+                            ? 'border-red-500 focus:border-red-600'
+                            : 'border-[color:var(--border)] focus:border-purple-600'
+                        }`}
                         required
                       />
                       <button
@@ -487,6 +616,11 @@ export default function Login() {
                         {showPassword ? <EyeOff /> : <Eye />}
                       </button>
                     </div>
+                    {passwordError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <span className="inline-block">✕</span> {passwordError}
+                      </p>
+                    )}
                   </label>
 
                   <label className="block text-sm font-medium text-[color:var(--text)]">
@@ -496,9 +630,13 @@ export default function Login() {
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="********"
-                        className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
+                        onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                        placeholder="Repite tu contraseña"
+                        className={`w-full rounded-2xl border bg-[color:var(--surface-muted)] py-3 pl-12 pr-12 text-[color:var(--text)] outline-none transition ${
+                          confirmPasswordError
+                            ? 'border-red-500 focus:border-red-600'
+                            : 'border-[color:var(--border)] focus:border-purple-600'
+                        }`}
                         required
                       />
                       <button
@@ -510,13 +648,24 @@ export default function Login() {
                         {showConfirmPassword ? <EyeOff /> : <Eye />}
                       </button>
                     </div>
+                    {confirmPasswordError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <span className="inline-block">✕</span> {confirmPasswordError}
+                      </p>
+                    )}
                   </label>
                 </div>
 
+                {errorMsg && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {errorMsg}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  disabled={isSubmitting || !isRegisterFormValid()}
+                  className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Procesando...' : 'Crear cuenta'}
                 </button>
