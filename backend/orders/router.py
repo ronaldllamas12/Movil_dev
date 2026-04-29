@@ -7,6 +7,7 @@ from orders.schemas import OrderSchema
 from orders.services import create_order_from_cart, update_order_status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 from users.models import User
 
 from database.core.database import get_db
@@ -57,7 +58,12 @@ def mark_order_cancelled(order_id: int, db: Session = Depends(get_db)):
 @router.get("/admin/", response_model=List[OrderSchema])
 def list_all_orders(current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Lista todas las órdenes para administradores."""
-    return db.query(Order).order_by(Order.created_at.desc()).all()
+    return (
+        db.query(Order)
+        .options(selectinload(Order.items))
+        .order_by(Order.created_at.desc())
+        .all()
+    )
 
 @router.put("/admin/{order_id}/status")
 def update_order_status_admin(order_id: int, request: UpdateStatusRequest, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -68,7 +74,12 @@ def update_order_status_admin(order_id: int, request: UpdateStatusRequest, curre
 @router.get("/admin/{order_id}/items", response_model=OrderSchema)
 def get_order_items_admin(order_id: int, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Obtiene la orden (incluyendo sus items) para administradores."""
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = (
+        db.query(Order)
+        .options(selectinload(Order.items))
+        .filter(Order.id == order_id)
+        .first()
+    )
     if not order:
         from database.core.errors import NotFoundError
         raise NotFoundError(f"Orden {order_id} no encontrada.")

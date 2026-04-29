@@ -13,7 +13,7 @@ export default function Cancel() {
           </div>
           <h1 className="text-3xl font-bold text-[color:var(--text)]">Pago cancelado</h1>
           <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
-            La transacción no se completó. Puedes volver al carrito y elegir otro método de pago sin abrir otra página.
+            Tu carrito está intacto. ¿Deseas continuar con el pago o vamos a agregar más productos?
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -23,7 +23,7 @@ export default function Cancel() {
               onClick={() => navigate('/carrito')}
             >
               <RotateCcw className="size-4" />
-              Volver al carrito
+              Continuar pago
             </button>
             <button
               type="button"
@@ -31,7 +31,7 @@ export default function Cancel() {
               onClick={() => navigate('/catalogo')}
             >
               <ArrowLeft className="size-4" />
-              Catálogo
+              Agregar más productos
             </button>
           </div>
         </div>

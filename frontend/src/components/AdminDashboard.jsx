@@ -16,6 +16,69 @@ import Sidebar from './Sidebar';
 
 const CATEGORY_OPTIONS = ['premium', 'gama media', 'economico'];
 
+function roundTwo(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function computeOrderTotalsFallback(order, taxRate) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const totalConIva = items.reduce((acc, raw) => {
+    const quantity = Number(raw?.quantity ?? raw?.cantidad ?? 0);
+    const price = Number(raw?.price ?? raw?.precio ?? raw?.precio_unitario ?? 0);
+    return acc + price * quantity;
+  }, 0);
+
+  const rate = Number.isFinite(Number(taxRate)) ? Number(taxRate) : 0;
+  const subtotal = rate > 0 ? totalConIva / (1 + rate / 100) : totalConIva;
+  const tax = totalConIva - subtotal;
+  return {
+    subtotal: roundTwo(subtotal),
+    tax: roundTwo(tax),
+    total: roundTwo(totalConIva),
+  };
+}
+
+function getOrderTotals(order, taxRate) {
+  const subtotal = Number(order?.subtotal);
+  const tax = Number(order?.tax);
+  const total = Number(order?.total);
+
+  const hasNumbers =
+    Number.isFinite(subtotal) &&
+    Number.isFinite(tax) &&
+    Number.isFinite(total) &&
+    (subtotal !== 0 || tax !== 0 || total !== 0);
+
+  if (hasNumbers) {
+    return { subtotal, tax, total };
+  }
+
+  return computeOrderTotalsFallback(order, taxRate);
+}
+
+function normalizeOrderItems(order) {
+  const rawItems = Array.isArray(order?.items)
+    ? order.items
+    : Array.isArray(order?.order_items)
+      ? order.order_items
+      : [];
+
+  return rawItems.map((raw) => {
+    const quantity = Number(raw?.quantity ?? raw?.cantidad ?? 0);
+    const price = Number(raw?.price ?? raw?.precio ?? raw?.precio_unitario ?? 0);
+    const productId = raw?.product_id ?? raw?.productId ?? raw?.producto_id ?? raw?.productoId ?? '';
+
+    return {
+      id: raw?.id ?? `${productId}-${price}-${quantity}`,
+      product_id: productId,
+      quantity,
+      price,
+    };
+  });
+}
+
 const BASE_CREATE_FORM = {
   marca: '',
   referencia: '',
@@ -1013,107 +1076,115 @@ export default function AdminDashboard() {
                     <tbody>
                       {orders.map((order) => (
                         <React.Fragment key={`order-group-${order.id}`}>
-                          <tr key={`order-${order.id}`} className="border-t border-slate-100">
-                            <td className="px-4 py-3 text-slate-500">#{order.id}</td>
-                            <td className="px-4 py-3 text-slate-700">Usuario #{order.user_id}</td>
-                            <td className="px-4 py-3 text-slate-700">
-                              {new Date(order.created_at).toLocaleDateString('es-CO')}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                order.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                                order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                'bg-slate-200 text-slate-700'
-                              }`}>
-                                {order.status === 'pending' ? 'Pendiente' :
-                                 order.status === 'paid' ? 'Pagado' :
-                                 order.status === 'shipped' ? 'Enviado' :
-                                 order.status === 'cancelled' ? 'Cancelado' :
-                                 order.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">${Number(order.subtotal || 0).toLocaleString('es-CO')}</td>
-                            <td className="px-4 py-3">${Number(order.tax || 0).toLocaleString('es-CO')}</td>
-                            <td className="px-4 py-3 font-semibold">${Number(order.total || 0).toLocaleString('es-CO')}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  disabled={isSaving}
-                                  onClick={() => handleToggleOrderDetails(order.id)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-                                >
-                                  {expandedOrderId === order.id ? 'Ocultar detalles' : 'Ver detalles'}
-                                </button>
-                                {order.status === 'pending' && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={() => handleUpdateOrderStatus(order.id, 'paid')}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-3 py-1.5 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-                                  >
-                                    Marcar Pagado
-                                  </button>
-                                )}
-                                {order.status === 'paid' && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-blue-300 px-3 py-1.5 text-blue-700 hover:bg-blue-50 disabled:opacity-60"
-                                  >
-                                    Enviar
-                                  </button>
-                                )}
-                                {order.status !== 'cancelled' && order.status !== 'shipped' && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-60"
-                                  >
-                                    Cancelar
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {expandedOrderId === order.id ? (
-                            <tr key={`details-${order.id}`} className="bg-slate-50">
-                              <td colSpan={8} className="px-4 py-4">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                  <h3 className="font-semibold text-slate-800 mb-3">Items de la orden</h3>
-                                  {order.items?.length ? (
-                                    <div className="overflow-x-auto">
-                                      <table className="min-w-full text-sm">
-                                        <thead className="bg-slate-100 text-slate-600">
-                                          <tr>
-                                            <th className="text-left px-3 py-2">Producto ID</th>
-                                            <th className="text-left px-3 py-2">Cantidad</th>
-                                            <th className="text-left px-3 py-2">Precio unitario</th>
-                                            <th className="text-left px-3 py-2">Total</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {order.items.map((item) => (
-                                            <tr key={item.id} className="border-t border-slate-100">
-                                              <td className="px-3 py-2 text-slate-700">{item.product_id}</td>
-                                              <td className="px-3 py-2">{item.quantity}</td>
-                                              <td className="px-3 py-2">${Number(item.price || 0).toLocaleString('es-CO')}</td>
-                                              <td className="px-3 py-2">${Number((item.price || 0) * item.quantity).toLocaleString('es-CO')}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
+                          {(() => {
+                            const totals = getOrderTotals(order, cartSettings.taxRate);
+                            const normalizedItems = normalizeOrderItems(order);
+                            return (
+                              <>
+                                <tr key={`order-${order.id}`} className="border-t border-slate-100">
+                                  <td className="px-4 py-3 text-slate-500">#{order.id}</td>
+                                  <td className="px-4 py-3 text-slate-700">Usuario #{order.user_id}</td>
+                                  <td className="px-4 py-3 text-slate-700">
+                                    {new Date(order.created_at).toLocaleDateString('es-CO')}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                      order.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                                      order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                      order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                      'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {order.status === 'pending' ? 'Pendiente' :
+                                       order.status === 'paid' ? 'Pagado' :
+                                       order.status === 'shipped' ? 'Enviado' :
+                                       order.status === 'cancelled' ? 'Cancelado' :
+                                       order.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">${Number(totals.subtotal || 0).toLocaleString('es-CO')}</td>
+                                  <td className="px-4 py-3">${Number(totals.tax || 0).toLocaleString('es-CO')}</td>
+                                  <td className="px-4 py-3 font-semibold">${Number(totals.total || 0).toLocaleString('es-CO')}</td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={() => handleToggleOrderDetails(order.id)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                                      >
+                                        {expandedOrderId === order.id ? 'Ocultar detalles' : 'Ver detalles'}
+                                      </button>
+                                      {order.status === 'pending' && (
+                                        <button
+                                          type="button"
+                                          disabled={isSaving}
+                                          onClick={() => handleUpdateOrderStatus(order.id, 'paid')}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-3 py-1.5 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                                        >
+                                          Marcar Pagado
+                                        </button>
+                                      )}
+                                      {order.status === 'paid' && (
+                                        <button
+                                          type="button"
+                                          disabled={isSaving}
+                                          onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-blue-300 px-3 py-1.5 text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                                        >
+                                          Enviar
+                                        </button>
+                                      )}
+                                      {order.status !== 'cancelled' && order.status !== 'shipped' && (
+                                        <button
+                                          type="button"
+                                          disabled={isSaving}
+                                          onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                                        >
+                                          Cancelar
+                                        </button>
+                                      )}
                                     </div>
-                                  ) : (
-                                    <p className="text-sm text-slate-500">No hay items registrados para esta orden.</p>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ) : null}
+                                  </td>
+                                </tr>
+                                {expandedOrderId === order.id ? (
+                                  <tr key={`details-${order.id}`} className="bg-slate-50">
+                                    <td colSpan={8} className="px-4 py-4">
+                                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <h3 className="font-semibold text-slate-800 mb-3">Items de la orden</h3>
+                                        {normalizedItems?.length ? (
+                                          <div className="overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                              <thead className="bg-slate-100 text-slate-600">
+                                                <tr>
+                                                  <th className="text-left px-3 py-2">Producto ID</th>
+                                                  <th className="text-left px-3 py-2">Cantidad</th>
+                                                  <th className="text-left px-3 py-2">Precio unitario</th>
+                                                  <th className="text-left px-3 py-2">Total</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {normalizedItems.map((item) => (
+                                                  <tr key={item.id} className="border-t border-slate-100">
+                                                    <td className="px-3 py-2 text-slate-700">{item.product_id}</td>
+                                                    <td className="px-3 py-2">{item.quantity}</td>
+                                                    <td className="px-3 py-2">${Number(item.price || 0).toLocaleString('es-CO')}</td>
+                                                    <td className="px-3 py-2">${Number((item.price || 0) * item.quantity).toLocaleString('es-CO')}</td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm text-slate-500">No hay items registrados para esta orden.</p>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </React.Fragment>
                       ))}
                     </tbody>
