@@ -210,6 +210,14 @@ def create_paypal_order(
     user: User,
     customer: Any,
 ) -> dict[str, str]:
+    # PRIMERO: Crear la orden en la base de datos con estado "pending"
+    from orders.services import create_order_from_cart
+    try:
+        order = create_order_from_cart(db, user)
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+
     cart_total = get_user_cart_total(db, user)
     amount, currency = build_paypal_amount(cart_total)
     reference = build_internal_reference(user, "paypal")
@@ -219,7 +227,7 @@ def create_paypal_order(
         "intent": "CAPTURE",
         "purchase_units": [
             {
-                "custom_id": reference,
+                "custom_id": f"order_{order_id_db}",  # Referencia a la orden en BD
                 "description": "Compra en Movil Dev",
                 "amount": {"currency_code": currency, "value": amount},
                 "shipping": {
@@ -236,7 +244,7 @@ def create_paypal_order(
             "brand_name": "Movil Dev",
             "landing_page": "NO_PREFERENCE",
             "user_action": "PAY_NOW",
-            "return_url": f"{_frontend_url()}/success?provider=paypal",
+            "return_url": f"{_frontend_url()}/success?provider=paypal&order_id={order_id_db}",
             "cancel_url": f"{_frontend_url()}/cancel",
         },
     }
@@ -269,6 +277,7 @@ def create_paypal_order(
         "amount": amount,
         "currency": currency,
         "invoice": reference,
+        "db_order_id": order_id_db,
     }
 
 
@@ -328,6 +337,14 @@ def create_epayco_session(
     user: User,
     customer: Any,
 ) -> dict[str, Any]:
+    # PRIMERO: Crear la orden en la base de datos con estado "pending"
+    from orders.services import create_order_from_cart
+    try:
+        order = create_order_from_cart(db, user)
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+
     amount = round(get_user_cart_total(db, user), 2)
     invoice = build_invoice(user, "epayco")
     access_token = _epayco_access_token()
@@ -350,7 +367,7 @@ def create_epayco_session(
         },
     }
 
-    response_url = f"{_frontend_url()}/success?provider=epayco"
+    response_url = f"{_frontend_url()}/success?provider=epayco&order_id={order_id_db}"
     confirmation_url = _env(
         "EPAYCO_CONFIRMATION_URL",
         f"{_backend_url()}/payments/epayco/confirmation",
@@ -402,4 +419,5 @@ def create_epayco_session(
         "invoice": invoice,
         "amount": amount,
         "currency": "COP",
+        "db_order_id": order_id_db,
     }
