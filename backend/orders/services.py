@@ -1,4 +1,5 @@
 from cart.services import compute_cart_totals, list_items_for_user
+from datetime import datetime, timezone
 from orders.models import Order, OrderItem
 from products.models import Product
 from sqlalchemy.orm import Session
@@ -6,6 +7,24 @@ from users.models import User
 
 from database.core.errors import ConflictError
 
+
+ORDER_STATUSES = {
+    "pending",
+    "paid",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "refunded",
+}
+
+ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"paid", "cancelled"},
+    "paid": {"shipped", "cancelled", "refunded"},
+    "shipped": {"delivered", "refunded"},
+    "delivered": {"refunded"},
+    "cancelled": set(),
+    "refunded": set(),
+}
 
 def create_order_from_cart(db: Session, user: User) -> Order:
     # Obtener items del carrito
@@ -103,11 +122,37 @@ def get_or_create_pending_order_for_checkout(db: Session, user: User) -> Order:
     return create_order_from_cart(db, user)
 
 
-def update_order_status(db: Session, order_id: int, status: str):
+def update_order_status(db: Session, order_id: int, status: str, reason: str | None = None):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise ConflictError("Orden no encontrada.")
-    order.status = status
+    next_status = str(status or "").strip().lower()
+    if next_status not in ORDER_STATUSES:
+        raise ConflictError("Estado inválido para la orden.")
+
+    current_status = str(order.status or "").strip().lower()
+    allowed = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+    if next_status != current_status and next_status not in allowed:
+        raise ConflictError(
+            f"No se puede cambiar estado de '{current_status}' a '{next_status}'."
+        )
+
+    if next_status != current_status:
+        now = datetime.now(timezone.utc)
+        normalized_reason = str(reason or "").strip() or None
+
+        if next_status == "cancelled":
+            order.cancelled_at = now
+            order.cancelled_reason = normalized_reason
+
+        if next_status == "delivered":
+            order.delivered_at = now
+
+        if next_status == "refunded":
+            order.refunded_at = now
+            order.refunded_reason = normalized_reason
+
+    order.status = next_status
     db.commit()
     db.refresh(order)
     return order

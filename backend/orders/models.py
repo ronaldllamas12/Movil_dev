@@ -1,5 +1,4 @@
-from sqlalchemy import (Column, DateTime, ForeignKey, Integer, Numeric, String,
-                        func)
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core.database import Base
@@ -14,6 +13,14 @@ class Order(Base):
     subtotal: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     tax: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+
+    cancelled_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    delivered_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    refunded_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refunded_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     items = relationship("OrderItem", back_populates="order")
 

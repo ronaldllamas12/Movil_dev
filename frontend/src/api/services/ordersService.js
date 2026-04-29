@@ -5,7 +5,20 @@ export const getAllOrders = async () => {
   return response.data;
 };
 
-export const updateOrderStatus = async (orderId, status) => {
-  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, { status });
+export const updateOrderStatus = async (orderId, status, reason) => {
+  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, {
+    status,
+    reason: reason || undefined,
+  });
+  return response.data;
+};
+
+export const getSalesReport = async ({ startDate, endDate } = {}) => {
+  const response = await axiosClient.get('/orders/admin/sales-report', {
+    params: {
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+    },
+  });
   return response.data;
 };

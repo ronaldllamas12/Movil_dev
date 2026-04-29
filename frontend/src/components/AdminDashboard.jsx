@@ -10,7 +10,7 @@ import {
     updateProduct,
     uploadProductImage,
 } from '../api/services/productsService';
-import { getAllOrders, updateOrderStatus } from '../api/services/ordersService';
+import { getAllOrders, getSalesReport, updateOrderStatus } from '../api/services/ordersService';
 import { useCarrito } from '../context/CarritoContext';
 import Sidebar from './Sidebar';
 
@@ -102,12 +102,16 @@ function OrderRow({
           <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
             order.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
             order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+            order.status === 'delivered' ? 'bg-indigo-100 text-indigo-700' :
+            order.status === 'refunded' ? 'bg-orange-100 text-orange-800' :
             order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
             'bg-slate-200 text-slate-700'
           }`}>
             {order.status === 'pending' ? 'Pendiente' :
              order.status === 'paid' ? 'Pagado' :
              order.status === 'shipped' ? 'Enviado' :
+             order.status === 'delivered' ? 'Entregado' :
+             order.status === 'refunded' ? 'Devuelto' :
              order.status === 'cancelled' ? 'Cancelado' :
              order.status}
           </span>
@@ -145,6 +149,26 @@ function OrderRow({
                 Enviar
               </button>
             )}
+            {order.status === 'shipped' && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => onUpdateStatus(order.id, 'delivered')}
+                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 px-3 py-1.5 text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+              >
+                Entregado
+              </button>
+            )}
+            {(order.status === 'paid' || order.status === 'shipped' || order.status === 'delivered') && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => onUpdateStatus(order.id, 'refunded')}
+                className="inline-flex items-center gap-1 rounded-lg border border-orange-300 px-3 py-1.5 text-orange-700 hover:bg-orange-50 disabled:opacity-60"
+              >
+                Devuelto
+              </button>
+            )}
             {order.status !== 'cancelled' && order.status !== 'shipped' && (
               <button
                 type="button"
@@ -162,6 +186,22 @@ function OrderRow({
         <tr className="bg-slate-50">
           <td colSpan={8} className="px-4 py-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Entregado</p>
+                  <p className="text-slate-700">{order.delivered_at ? new Date(order.delivered_at).toLocaleString('es-CO') : '—'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Cancelado</p>
+                  <p className="text-slate-700">{order.cancelled_at ? new Date(order.cancelled_at).toLocaleString('es-CO') : '—'}</p>
+                  <p className="text-xs text-slate-500 mt-1 break-words">{order.cancelled_reason || ''}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Devuelto</p>
+                  <p className="text-slate-700">{order.refunded_at ? new Date(order.refunded_at).toLocaleString('es-CO') : '—'}</p>
+                  <p className="text-xs text-slate-500 mt-1 break-words">{order.refunded_reason || ''}</p>
+                </div>
+              </div>
               <h3 className="font-semibold text-slate-800 mb-3">Items de la orden</h3>
               {normalizedItems?.length ? (
                 <div className="overflow-x-auto">
@@ -509,6 +549,11 @@ export default function AdminDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
 
+  const [salesReport, setSalesReport] = useState(null);
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [salesStartDate, setSalesStartDate] = useState('');
+  const [salesEndDate, setSalesEndDate] = useState('');
+
   const isAdmin = currentUser?.role === 'administrador';
   const visibleProducts = useMemo(() => products.slice(0, 100), [products]);
   const referenceToProductMap = useMemo(() => {
@@ -615,6 +660,30 @@ export default function AdminDashboard() {
     };
 
     loadOrders();
+  }, [isAdmin, selectedModule]);
+
+  useEffect(() => {
+    if (!isAdmin || selectedModule !== 'ventas') {
+      return;
+    }
+
+    const loadReport = async () => {
+      setSalesLoading(true);
+      setErrorMsg('');
+      try {
+        const data = await getSalesReport({
+          startDate: salesStartDate || undefined,
+          endDate: salesEndDate || undefined,
+        });
+        setSalesReport(data);
+      } catch (error) {
+        setErrorMsg(error?.response?.data?.detail || 'No se pudo cargar el reporte de ventas.');
+      } finally {
+        setSalesLoading(false);
+      }
+    };
+
+    loadReport();
   }, [isAdmin, selectedModule]);
 
   const resetMessages = () => {
@@ -852,13 +921,50 @@ export default function AdminDashboard() {
     setIsSaving(true);
 
     try {
-      await updateOrderStatus(orderId, newStatus);
-      setOrders((prev) => prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)));
+      const requiresReason = newStatus === 'cancelled' || newStatus === 'refunded';
+      const reason = requiresReason
+        ? window.prompt(
+          newStatus === 'cancelled'
+            ? 'Motivo de cancelación (opcional):'
+            : 'Motivo de devolución (opcional):',
+          '',
+        )
+        : undefined;
+
+      const response = await updateOrderStatus(orderId, newStatus, reason);
+
+      setOrders((prev) => prev.map((order) => (
+        order.id === orderId
+          ? {
+            ...order,
+            ...response,
+            status: newStatus,
+          }
+          : order
+      )));
       setSuccessMsg('Estado de la orden actualizado correctamente.');
     } catch (error) {
       setErrorMsg(error?.response?.data?.detail || 'No se pudo actualizar el estado de la orden.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleReloadSalesReport = async () => {
+    resetMessages();
+    setSalesLoading(true);
+
+    try {
+      const data = await getSalesReport({
+        startDate: salesStartDate || undefined,
+        endDate: salesEndDate || undefined,
+      });
+      setSalesReport(data);
+      setSuccessMsg('Reporte actualizado correctamente.');
+    } catch (error) {
+      setErrorMsg(error?.response?.data?.detail || 'No se pudo cargar el reporte de ventas.');
+    } finally {
+      setSalesLoading(false);
     }
   };
 
@@ -1210,6 +1316,119 @@ export default function AdminDashboard() {
               )}
             </div>
           </>
+        )}
+
+        {selectedModule === 'ventas' && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-semibold text-slate-800">Reporte básico de ventas</h2>
+                <p className="text-sm text-slate-500">Totales por rango de fechas (opcional).</p>
+              </div>
+              <button
+                type="button"
+                disabled={salesLoading}
+                onClick={handleReloadSalesReport}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-700 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                {salesLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+                Actualizar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                Desde (ISO)
+                <input
+                  value={salesStartDate}
+                  onChange={(e) => setSalesStartDate(e.target.value)}
+                  placeholder="2026-01-01T00:00:00"
+                  className="rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                Hasta (ISO)
+                <input
+                  value={salesEndDate}
+                  onChange={(e) => setSalesEndDate(e.target.value)}
+                  placeholder="2026-12-31T23:59:59"
+                  className="rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </label>
+            </div>
+
+            {salesLoading ? (
+              <div className="p-8 text-center text-slate-600">
+                <Loader2 className="size-5 animate-spin mx-auto mb-2" />
+                Cargando reporte...
+              </div>
+            ) : !salesReport ? (
+              <p className="text-sm text-slate-500">Sin datos. Presiona “Actualizar”.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs text-slate-500">Órdenes</p>
+                    <p className="text-2xl font-bold text-slate-900">{salesReport.orders_count}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs text-slate-500">Items vendidos</p>
+                    <p className="text-2xl font-bold text-slate-900">{salesReport.items_count}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs text-slate-500">Ventas netas</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      ${Number(salesReport.net_sales || 0).toLocaleString('es-CO')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-slate-500">Ventas brutas</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        ${Number(salesReport.gross_sales || 0).toLocaleString('es-CO')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Devoluciones</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        ${Number(salesReport.refunded_amount || 0).toLocaleString('es-CO')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Rango</p>
+                      <p className="text-sm text-slate-700 break-all">
+                        {salesReport.start_date || '—'} → {salesReport.end_date || '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-600">
+                        <tr>
+                          <th className="text-left px-3 py-2">Estado</th>
+                          <th className="text-left px-3 py-2">Órdenes</th>
+                          <th className="text-left px-3 py-2">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(salesReport.by_status || []).map((row) => (
+                          <tr key={row.status} className="border-t border-slate-100">
+                            <td className="px-3 py-2 text-slate-700">{row.status}</td>
+                            <td className="px-3 py-2">{row.orders_count}</td>
+                            <td className="px-3 py-2">${Number(row.total_amount || 0).toLocaleString('es-CO')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </main>
     </div>
