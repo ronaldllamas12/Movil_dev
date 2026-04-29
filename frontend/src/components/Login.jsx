@@ -196,6 +196,27 @@ export default function Login() {
       login(data.user);
       navigate(getPostLoginPath(data.user));
     } catch (error) {
+      // Manejo especial para error de longitud mínima de contraseña y otros errores de validación
+      if (
+        error?.response?.status === 422 &&
+        Array.isArray(error?.response?.data?.detail)
+      ) {
+        const detailArr = error.response.data.detail;
+        // Buscar error de longitud mínima en español o inglés
+        const pwdError = detailArr.find(
+          (e) =>
+            e?.loc?.includes('password') &&
+            (e?.msg?.toLowerCase().includes('longitud mínima') ||
+             e?.msg?.toLowerCase().includes('at least 8 characters'))
+        );
+        if (pwdError) {
+          setErrorMsg('La contraseña debe tener al menos 8 caracteres.');
+          return;
+        }
+        // Mostrar todos los mensajes de error si hay varios
+        setErrorMsg(detailArr.map(e => e?.msg || JSON.stringify(e)));
+        return;
+      }
       setErrorMsg(getApiErrorMessage(error));
     } finally {
       setIsSubmitting(false);
@@ -309,11 +330,18 @@ export default function Login() {
           </div>
 
           <div className="p-6 md:p-8">
-            {errorMsg && (
+            {errorMsg && Array.isArray(errorMsg) ? (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                {errorMsg.map((msg, idx) => (
+                  <div key={idx}>{typeof msg === 'string' ? msg : (msg?.msg || JSON.stringify(msg))}</div>
+                ))}
+              </div>
+            ) : null}
+            {errorMsg && !Array.isArray(errorMsg) ? (
               <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-                {errorMsg}
+                {typeof errorMsg === 'string' ? errorMsg : (errorMsg?.msg || JSON.stringify(errorMsg))}
               </p>
-            )}
+            ) : null}
 
             {forgotSuccessMsg && authView === 'forgot' && (
               <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
