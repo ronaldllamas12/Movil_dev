@@ -5,6 +5,13 @@ import { getApiErrorMessage } from '../api/axiosClient';
 import { capturePayPalOrder } from '../api/services/paymentService';
 import { useCarrito } from '../context/CarritoContext';
 
+const GENERIC_CART_INTACT_ERROR = 'Upps! Algo salió mal. Tu carrito quedó intacto.';
+
+function buildCartIntactError(details) {
+  const message = String(details || '').trim();
+  return message ? `${GENERIC_CART_INTACT_ERROR} (${message})` : GENERIC_CART_INTACT_ERROR;
+}
+
 export default function Success() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -51,7 +58,7 @@ export default function Success() {
         setSuccess(true);
         await limpiarCarrito();
       } else {
-        setError('Upps! Algo salió mal. Tu carrito quedó intacto.');
+        setError(GENERIC_CART_INTACT_ERROR);
       }
 
       setLoading(false);
@@ -59,7 +66,7 @@ export default function Success() {
 
     const finishPayPal = async () => {
       if (!token) {
-        setError('Upps! Algo salió mal. Tu carrito quedó intacto.');
+        setError(GENERIC_CART_INTACT_ERROR);
         setLoading(false);
         return;
       }
@@ -70,11 +77,10 @@ export default function Success() {
           setSuccess(true);
           await limpiarCarrito();
         } else {
-          setError('Upps! Algo salió mal. Tu carrito quedó intacto.');
+          setError(GENERIC_CART_INTACT_ERROR);
         }
       } catch (err) {
-        const message = getApiErrorMessage(err);
-        setError(message ? `Upps! Algo salió mal. Tu carrito quedó intacto. (${message})` : 'Upps! Algo salió mal. Tu carrito quedó intacto.');
+        setError(buildCartIntactError(getApiErrorMessage(err)));
       } finally {
         setLoading(false);
       }
@@ -164,7 +170,7 @@ export default function Success() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[color:var(--border)] px-5 py-3 text-sm font-bold text-[color:var(--text)] transition hover:bg-[color:var(--surface-muted)]"
                 onClick={() => navigate('/catalogo')}
               >
-                <Home className="size-4" />
+                <ShoppingBag className="size-4" />
                 Agregar más productos
               </button>
             </div>
