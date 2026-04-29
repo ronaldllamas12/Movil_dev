@@ -25,6 +25,7 @@ os.environ["CART_SHIPPING_FIXED_FEE"] = "0"
 os.environ["CART_FREE_SHIPPING_FROM"] = "-1"
 
 from auth.services import create_token_for_user, register_user
+from orders.models import Order, OrderItem
 from products.models import Product
 from users.constants import UserRole
 from users.models import User

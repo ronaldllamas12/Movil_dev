@@ -85,6 +85,108 @@ def test_create_paypal_order_builds_expected_payload(
     assert posted_payloads[0][1]["json"]["purchase_units"][0]["amount"]["value"] == "400000.00"
 
 
+def test_create_paypal_order_reuses_pending_order_when_cart_has_not_changed(
+    db_session,
+    make_user,
+    make_product,
+    monkeypatch,
+):
+    user = make_user(email="paypal-reuse@example.com")
+    product = make_product(precio_unitario=400000, cantidad_stock=5)
+    add_item_for_user(db_session, user_id=user.id, product_id=product.id, quantity=1)
+
+    posted_payloads = []
+
+    def fake_post(url, **kwargs):
+        posted_payloads.append((url, kwargs))
+        return FakeResponse(
+            201,
+            {
+                "id": f"PAYPAL-{len(posted_payloads)}",
+                "links": [{"rel": "approve", "href": "https://paypal.test/approve"}],
+            },
+        )
+
+    monkeypatch.setenv("PAYPAL_CURRENCY", "COP")
+    monkeypatch.setattr(services, "_paypal_access_token", lambda: "access-token")
+    monkeypatch.setattr(services.requests, "post", fake_post)
+
+    first = services.create_paypal_order(
+        db=db_session,
+        user=user,
+        customer=SimpleNamespace(
+            nombre="Cliente",
+            direccion="Calle 1",
+            ciudad="Bogota",
+        ),
+    )
+    second = services.create_paypal_order(
+        db=db_session,
+        user=user,
+        customer=SimpleNamespace(
+            nombre="Cliente",
+            direccion="Calle 1",
+            ciudad="Bogota",
+        ),
+    )
+
+    assert first["db_order_id"] == second["db_order_id"]
+    assert len(posted_payloads) == 2
+
+
+def test_create_paypal_order_creates_new_order_when_cart_changes(
+    db_session,
+    make_user,
+    make_product,
+    monkeypatch,
+):
+    user = make_user(email="paypal-new-order@example.com")
+    product_one = make_product(precio_unitario=300000, cantidad_stock=5, referencia="REF-TEST-ONE")
+    product_two = make_product(precio_unitario=100000, cantidad_stock=5, referencia="REF-TEST-TWO")
+    add_item_for_user(db_session, user_id=user.id, product_id=product_one.id, quantity=1)
+
+    posted_payloads = []
+
+    def fake_post(url, **kwargs):
+        posted_payloads.append((url, kwargs))
+        return FakeResponse(
+            201,
+            {
+                "id": f"PAYPAL-{len(posted_payloads)}",
+                "links": [{"rel": "approve", "href": "https://paypal.test/approve"}],
+            },
+        )
+
+    monkeypatch.setenv("PAYPAL_CURRENCY", "COP")
+    monkeypatch.setattr(services, "_paypal_access_token", lambda: "access-token")
+    monkeypatch.setattr(services.requests, "post", fake_post)
+
+    first = services.create_paypal_order(
+        db=db_session,
+        user=user,
+        customer=SimpleNamespace(
+            nombre="Cliente",
+            direccion="Calle 1",
+            ciudad="Bogota",
+        ),
+    )
+
+    add_item_for_user(db_session, user_id=user.id, product_id=product_two.id, quantity=1)
+
+    second = services.create_paypal_order(
+        db=db_session,
+        user=user,
+        customer=SimpleNamespace(
+            nombre="Cliente",
+            direccion="Calle 1",
+            ciudad="Bogota",
+        ),
+    )
+
+    assert first["db_order_id"] != second["db_order_id"]
+    assert len(posted_payloads) == 2
+
+
 def test_create_epayco_session_raises_when_provider_returns_no_session(
     db_session,
     make_user,

@@ -210,19 +210,13 @@ def create_paypal_order(
     user: User,
     customer: Any,
 ) -> dict[str, str]:
-    # PRIMERO: Verificar si ya existe una orden pendiente para el usuario
-    from orders.models import Order
-    from orders.services import create_order_from_cart
+    from orders.services import get_or_create_pending_order_for_checkout
 
-    existing_order = db.query(Order).filter(Order.user_id == user.id, Order.status == "pending").first()
-    if existing_order:
-        order_id_db = existing_order.id
-    else:
-        try:
-            order = create_order_from_cart(db, user)
-            order_id_db = order.id
-        except Exception as e:
-            raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+    try:
+        order = get_or_create_pending_order_for_checkout(db, user)
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
 
     cart_total = get_user_cart_total(db, user)
     amount, currency = build_paypal_amount(cart_total)
@@ -343,19 +337,13 @@ def create_epayco_session(
     user: User,
     customer: Any,
 ) -> dict[str, Any]:
-    # PRIMERO: Verificar si ya existe una orden pendiente para el usuario
-    from orders.models import Order
-    from orders.services import create_order_from_cart
+    from orders.services import get_or_create_pending_order_for_checkout
 
-    existing_order = db.query(Order).filter(Order.user_id == user.id, Order.status == "pending").first()
-    if existing_order:
-        order_id_db = existing_order.id
-    else:
-        try:
-            order = create_order_from_cart(db, user)
-            order_id_db = order.id
-        except Exception as e:
-            raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+    try:
+        order = get_or_create_pending_order_for_checkout(db, user)
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
 
     amount = round(get_user_cart_total(db, user), 2)
     invoice = build_invoice(user, "epayco")

@@ -65,6 +65,44 @@ def create_order_from_cart(db: Session, user: User) -> Order:
     return order
 
 
+def _pending_order_matches_cart(order: Order, cart_items: list) -> bool:
+    if len(order.items) != len(cart_items):
+        return False
+
+    cart_items_by_product = {
+        item.product_id: item for item in cart_items
+    }
+
+    for order_item in order.items:
+        cart_item = cart_items_by_product.get(order_item.product_id)
+        if not cart_item:
+            return False
+        if order_item.quantity != cart_item.quantity:
+            return False
+        if float(order_item.price) != float(cart_item.price):
+            return False
+
+    return True
+
+
+def get_or_create_pending_order_for_checkout(db: Session, user: User) -> Order:
+    cart_items = list_items_for_user(db, user_id=user.id)
+    if not cart_items:
+        raise ConflictError("El carrito está vacío.")
+
+    pending_order = (
+        db.query(Order)
+        .filter(Order.user_id == user.id, Order.status == "pending")
+        .order_by(Order.created_at.desc())
+        .first()
+    )
+
+    if pending_order and _pending_order_matches_cart(pending_order, cart_items):
+        return pending_order
+
+    return create_order_from_cart(db, user)
+
+
 def update_order_status(db: Session, order_id: int, status: str):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
