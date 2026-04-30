@@ -16,6 +16,9 @@ venv/
 # Pytest
 .pytest_cache/
 
+# Archivos generados por la app
+backend/generated/
+
 # Coverage
 .coverage
 htmlcov/

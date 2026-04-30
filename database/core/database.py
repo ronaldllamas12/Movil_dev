@@ -161,3 +161,39 @@ def ensure_products_new_columns(engine: Engine) -> None:
     with engine.begin() as connection:
         for stmt in statements:
             connection.execute(text(stmt))
+
+
+def ensure_orders_invoice_columns(engine: Engine) -> None:
+    """Agrega columnas de facturación/envío a orders si la tabla ya existía."""
+    inspector = inspect(engine)
+
+    if "orders" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("orders")}
+    column_definitions = {
+        "customer_name": "VARCHAR(200)",
+        "customer_email": "VARCHAR(255)",
+        "customer_phone": "VARCHAR(40)",
+        "delivery_address": "VARCHAR(300)",
+        "delivery_city": "VARCHAR(120)",
+        "payment_provider": "VARCHAR(40)",
+        "payment_method": "VARCHAR(80)",
+        "paid_at": "TIMESTAMP",
+        "invoice_pdf_path": "VARCHAR(500)",
+        "invoice_email_sent_to": "VARCHAR(255)",
+        "invoice_email_sent_at": "TIMESTAMP",
+    }
+
+    statements = [
+        f"ALTER TABLE orders ADD COLUMN {name} {definition}"
+        for name, definition in column_definitions.items()
+        if name not in columns
+    ]
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for stmt in statements:
+            connection.execute(text(stmt))

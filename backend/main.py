@@ -28,7 +28,8 @@ from payments.router import router as payments_router
 from products.models import Product
 from products.router import router as products_router
 
-from database.core.database import (Base, ensure_products_new_columns,
+from database.core.database import (Base, ensure_orders_invoice_columns,
+                                    ensure_products_new_columns,
                                     ensure_user_role_column, get_engine)
 from database.core.errors import (AppError, ConflictError, ForbiddenError,
                                   NotFoundError, UnauthorizedError)
@@ -71,6 +72,7 @@ async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_user_role_column(engine)
     ensure_products_new_columns(engine)
+    ensure_orders_invoice_columns(engine)
     yield
 
 

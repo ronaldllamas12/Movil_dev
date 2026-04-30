@@ -210,10 +210,17 @@ def create_paypal_order(
     user: User,
     customer: Any,
 ) -> dict[str, str]:
-    from orders.services import get_or_create_pending_order_for_checkout
+    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
 
     try:
         order = get_or_create_pending_order_for_checkout(db, user)
+        save_checkout_customer(
+            db,
+            order=order,
+            customer=customer,
+            provider="paypal",
+            payment_method="Tarjeta/PayPal",
+        )
         order_id_db = order.id
     except Exception as e:
         raise ConflictError(f"No se pudo crear la orden: {str(e)}")
@@ -337,16 +344,23 @@ def create_epayco_session(
     user: User,
     customer: Any,
 ) -> dict[str, Any]:
-    from orders.services import get_or_create_pending_order_for_checkout
+    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
 
     try:
         order = get_or_create_pending_order_for_checkout(db, user)
+        save_checkout_customer(
+            db,
+            order=order,
+            customer=customer,
+            provider="epayco",
+            payment_method="Tarjeta/transferencia ePayco",
+        )
         order_id_db = order.id
     except Exception as e:
         raise ConflictError(f"No se pudo crear la orden: {str(e)}")
 
     amount = round(get_user_cart_total(db, user), 2)
-    invoice = build_invoice(user, "epayco")
+    invoice = str(order_id_db)
     access_token = _epayco_access_token()
 
     payload = {
@@ -364,6 +378,7 @@ def create_epayco_session(
             "extra3": customer.telefono,
             "extra4": customer.direccion,
             "extra5": customer.ciudad,
+            "extra6": str(order_id_db),
         },
     }
 

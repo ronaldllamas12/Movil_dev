@@ -1,10 +1,9 @@
 """Rutas para crear y confirmar pagos."""
 
-import httpx
 from auth.dependencies import get_current_user
 import requests
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
-from orders.models import Order
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from orders.services import mark_order_paid, update_order_status
 from payments.schemas import (CheckoutCustomerData, EpaycoSessionResponse,
                               PayPalCaptureResponse, PayPalCreateOrderResponse)
 from payments.services import (_paypal_access_token, _paypal_api_base,
@@ -33,9 +32,19 @@ def create_paypal_checkout_order(
 @router.post("/paypal/capture-order", response_model=PayPalCaptureResponse)
 def capture_paypal_checkout_order(
     token: str = Query(...),
+    db_order_id: int | None = Query(None),
+    db: Session = Depends(get_db),
 ) -> PayPalCaptureResponse:
     """Captura una orden PayPal aprobada por el comprador."""
-    return PayPalCaptureResponse(**capture_paypal_order(token))
+    result = capture_paypal_order(token)
+    if result["success"] and db_order_id:
+        mark_order_paid(
+            db,
+            db_order_id,
+            provider="paypal",
+            payment_method="Tarjeta/PayPal",
+        )
+    return PayPalCaptureResponse(**result)
 
 
 @router.post("/epayco/create-session", response_model=EpaycoSessionResponse)
@@ -51,37 +60,39 @@ def create_epayco_checkout_session(
 
 
 async def _handle_epayco_confirmation(
-    request: Request, background_tasks: BackgroundTasks
+    request: Request, db: Session
 ) -> dict[str, bool]:
     """Recibe la confirmacion enviada por ePayco y actualiza la orden automáticamente."""
     data = (
         await request.json() if request.headers.get("content-type", "").startswith("application/json")
         else dict(await request.form())
     )
-    ref_payco = data.get("ref_payco")
-    x_extra1 = data.get("x_extra1") or data.get("extra1")  # user_id
     x_invoice_id = data.get("x_id_invoice") or data.get("x_invoice_id") or data.get("invoice")
     x_cod_response = str(data.get("x_cod_response") or data.get("cod_response") or "").strip()
     x_response = str(data.get("x_response") or data.get("response") or "").lower()
-    order_id = data.get("order_id") or data.get("x_order_id")
+    order_id = (
+        data.get("order_id")
+        or data.get("x_order_id")
+        or data.get("x_extra6")
+        or data.get("extra6")
+        or x_invoice_id
+    )
 
-    # Aquí debes extraer el order_id real que asociaste en el campo invoice o extraX
-    # Suponiendo que el campo invoice almacena el ID de la orden
     try:
-        order_id_int = int(x_invoice_id)
+        order_id_int = int(str(order_id).replace("order_", ""))
     except (TypeError, ValueError):
         return {"received": False}
 
     # Estados exitosos: 1 = aprobado
     if x_cod_response == "1" or "aprob" in x_response:
-        # Llama al endpoint para marcar la orden como pagada
-        background_tasks.add_task(
-            httpx.post, f"http://localhost:8000/orders/epayco/mark-paid/{order_id_int}"
+        mark_order_paid(
+            db=db,
+            order_id=order_id_int,
+            provider="epayco",
+            payment_method="Tarjeta/transferencia ePayco",
         )
     else:
-        background_tasks.add_task(
-            httpx.post, f"http://localhost:8000/orders/order/mark-cancelled/{order_id_int}"
-        )
+        update_order_status(db, order_id_int, "cancelled")
 
     return {"received": True}
 
@@ -89,23 +100,22 @@ async def _handle_epayco_confirmation(
 @router.post("/epayco/confirmation")
 async def receive_epayco_confirmation_post(
     request: Request,
-    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> dict[str, bool]:
-    return await _handle_epayco_confirmation(request, background_tasks)
+    return await _handle_epayco_confirmation(request, db)
 
 
 @router.get("/epayco/confirmation")
 async def receive_epayco_confirmation_get(
     request: Request,
-    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> dict[str, bool]:
-    return await _handle_epayco_confirmation(request, background_tasks)
+    return await _handle_epayco_confirmation(request, db)
 
 
 @router.api_route("/paypal/webhook", methods=["POST"])
 async def paypal_webhook(
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     paypal_auth_algo: str = Header(None, alias="Paypal-Auth-Algo"),
     paypal_cert_url: str = Header(None, alias="Paypal-Cert-Url"),
@@ -116,10 +126,8 @@ async def paypal_webhook(
 ) -> dict:
     """Webhook para notificaciones de PayPal. Valida firma, consulta la API y actualiza la orden."""
     data = await request.json()
-    event_type = data.get("event_type")
     resource = data.get("resource", {})
     custom_id = resource.get("custom_id") or resource.get("invoice_id")
-    status = resource.get("status", "").upper()
     capture_id = resource.get("id")
     amount = resource.get("amount", {}).get("value")
     currency = resource.get("amount", {}).get("currency_code")
@@ -160,17 +168,22 @@ async def paypal_webhook(
                 and real_currency == currency
             ):
                 try:
-                    order_id_int = int(custom_id)
+                    order_id_int = int(str(custom_id).replace("order_", ""))
                 except (TypeError, ValueError):
                     return {"received": False}
-                background_tasks.add_task(httpx.post, f"http://localhost:8000/orders/paypal/mark-paid/{order_id_int}")
+                mark_order_paid(
+                    db,
+                    order_id_int,
+                    provider="paypal",
+                    payment_method="Tarjeta/PayPal",
+                )
                 return {"received": True}
             else:
                 # Si el pago no es válido, cancela la orden
                 try:
-                    order_id_int = int(custom_id)
+                    order_id_int = int(str(custom_id).replace("order_", ""))
                 except (TypeError, ValueError):
                     return {"received": False}
-                background_tasks.add_task(httpx.post, f"http://localhost:8000/orders/order/mark-cancelled/{order_id_int}")
+                update_order_status(db, order_id_int, "cancelled")
                 return {"received": True}
     return {"received": False}

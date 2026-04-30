@@ -1,16 +1,16 @@
 from typing import List
+from pathlib import Path
 
 from auth.dependencies import get_current_admin, get_current_user
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import FileResponse
 from orders.models import Order, OrderItem
-from orders.schemas import OrderSchema, SalesReportResponse, SalesReportStatusRow
-from orders.services import create_order_from_cart, update_order_status
+from orders.schemas import OrderSchema
+from orders.services import (create_order_from_cart, ensure_order_invoice_pdf,
+                            mark_order_paid, send_order_invoice_email,
+                            update_order_status)
 from pydantic import BaseModel
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import selectinload
 from users.models import User
 
 from database.core.database import get_db
@@ -20,7 +20,6 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 
 class UpdateStatusRequest(BaseModel):
     status: str
-    reason: str | None = None
 
 @router.get("/", response_model=List[OrderSchema])
 def list_orders(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -43,13 +42,13 @@ def create_order(current_user: User = Depends(get_current_user), db: Session = D
 @router.post("/paypal/mark-paid/{order_id}")
 def mark_paypal_order_paid(order_id: int, db: Session = Depends(get_db)):
     """Marca una orden como pagada tras confirmación de PayPal."""
-    update_order_status(db, order_id, "paid")
+    mark_order_paid(db, order_id, provider="paypal", payment_method="Tarjeta/PayPal")
     return {"success": True}
 
 @router.post("/epayco/mark-paid/{order_id}")
 def mark_epayco_order_paid(order_id: int, db: Session = Depends(get_db)):
     """Marca una orden como pagada tras confirmación de ePayco."""
-    update_order_status(db, order_id, "paid")
+    mark_order_paid(db, order_id, provider="epayco", payment_method="Tarjeta/transferencia ePayco")
     return {"success": True}
 
 @router.post("/order/mark-cancelled/{order_id}")
@@ -62,104 +61,57 @@ def mark_order_cancelled(order_id: int, db: Session = Depends(get_db)):
 @router.get("/admin/", response_model=List[OrderSchema])
 def list_all_orders(current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Lista todas las órdenes para administradores."""
-    return (
-        db.query(Order)
-        .options(selectinload(Order.items))
-        .order_by(Order.created_at.desc())
-        .all()
-    )
+    return db.query(Order).order_by(Order.created_at.desc()).all()
 
 @router.put("/admin/{order_id}/status", response_model=OrderSchema)
 def update_order_status_admin(order_id: int, request: UpdateStatusRequest, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Actualiza el estado de una orden para administradores."""
-    return update_order_status(db, order_id, request.status, request.reason)
+    return update_order_status(db, order_id, request.status)
 
 @router.get("/admin/{order_id}/items", response_model=OrderSchema)
 def get_order_items_admin(order_id: int, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Obtiene la orden (incluyendo sus items) para administradores."""
-    order = (
-        db.query(Order)
-        .options(selectinload(Order.items))
-        .filter(Order.id == order_id)
-        .first()
-    )
+    order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         from database.core.errors import NotFoundError
         raise NotFoundError(f"Orden {order_id} no encontrada.")
     return order
 
+@router.get("/admin/{order_id}/invoice")
+def download_order_invoice_admin(order_id: int, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Permite al administrador ver o descargar la factura PDF de una orden."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise NotFoundError(f"Orden {order_id} no encontrada.")
 
-@router.get("/admin/sales-report", response_model=SalesReportResponse)
-def get_sales_report(
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-    start_date: datetime | None = Query(default=None),
-    end_date: datetime | None = Query(default=None),
-):
-    """
-    Reporte básico de ventas.
+    if order.status != "paid":
+        raise NotFoundError("La orden todavía no tiene pago exitoso.")
 
-    - gross_sales: suma de totales para órdenes pagadas/enviadas/entregadas
-    - refunded_amount: suma de totales para órdenes devueltas (refunded)
-    - net_sales = gross_sales - refunded_amount
-    """
+    if not order.invoice_pdf_path:
+        ensure_order_invoice_pdf(db, order)
+        db.commit()
+        db.refresh(order)
 
-    base_filter = []
-    if start_date is not None:
-        base_filter.append(Order.created_at >= start_date)
-    if end_date is not None:
-        base_filter.append(Order.created_at <= end_date)
-
-    orders_count = db.query(func.count(Order.id)).filter(*base_filter).scalar() or 0
-
-    items_count = (
-        db.query(func.coalesce(func.sum(OrderItem.quantity), 0))
-        .join(Order, OrderItem.order_id == Order.id)
-        .filter(*base_filter)
-        .scalar()
-        or 0
+    from pathlib import Path
+    import os
+    # Siempre buscar en generated/invoices en la raíz del proyecto
+    base_dir = Path(__file__).parent.parent.parent.resolve()
+    invoices_dir = base_dir / "generated" / "invoices"
+    pdf_path = Path(order.invoice_pdf_path)
+    if not pdf_path.is_absolute() or invoices_dir not in pdf_path.parents:
+        pdf_path = invoices_dir / pdf_path.name
+    if not pdf_path.exists() or not pdf_path.is_file():
+        pdf_path = ensure_order_invoice_pdf(db, order)
+        db.commit()
+        db.refresh(order)
+    print(f"[DEBUG] Sirviendo PDF desde: {pdf_path.resolve()}")
+    return FileResponse(
+        path=str(pdf_path.resolve()),
+        media_type="application/pdf",
+        filename=pdf_path.name,
     )
 
-    gross_sales = (
-        db.query(func.coalesce(func.sum(Order.total), 0))
-        .filter(*base_filter, Order.status.in_(["paid", "shipped", "delivered"]))
-        .scalar()
-        or 0
-    )
-
-    refunded_amount = (
-        db.query(func.coalesce(func.sum(Order.total), 0))
-        .filter(*base_filter, Order.status == "refunded")
-        .scalar()
-        or 0
-    )
-
-    grouped = (
-        db.query(
-            Order.status.label("status"),
-            func.count(Order.id).label("orders_count"),
-            func.coalesce(func.sum(Order.total), 0).label("total_amount"),
-        )
-        .filter(*base_filter)
-        .group_by(Order.status)
-        .order_by(Order.status.asc())
-        .all()
-    )
-
-    return SalesReportResponse(
-        start_date=start_date,
-        end_date=end_date,
-        orders_count=int(orders_count),
-        items_count=int(items_count),
-        gross_sales=float(gross_sales),
-        refunded_amount=float(refunded_amount),
-        net_sales=float(gross_sales) - float(refunded_amount),
-        by_status=[
-            SalesReportStatusRow(
-                status=row.status,
-                orders_count=int(row.orders_count),
-                total_amount=float(row.total_amount),
-            )
-            for row in grouped
-        ],
-    )
+@router.post("/admin/{order_id}/invoice/send", response_model=OrderSchema)
+def send_order_invoice_admin(order_id: int, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Reenvia la factura PDF al correo capturado para facturacion."""
+    return send_order_invoice_email(db, order_id, force=True)

@@ -129,6 +129,9 @@ export default function CheckoutSteps({ currentUser }) {
       const data = await createPayPalOrder(buildCheckoutPayload());
 
       if (data?.url) {
+        if (data.db_order_id) {
+          localStorage.setItem("pending_checkout_order_id", String(data.db_order_id));
+        }
         window.location.href = data.url;
         return;
       }
@@ -147,6 +150,9 @@ export default function CheckoutSteps({ currentUser }) {
     try {
       await loadEpaycoScript();
       const session = await createEpaycoSession(buildCheckoutPayload());
+      if (session.db_order_id) {
+        localStorage.setItem("pending_checkout_order_id", String(session.db_order_id));
+      }
 
       const checkout = window.ePayco.checkout.configure({
         sessionId: session.session_id,

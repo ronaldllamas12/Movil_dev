@@ -1,4 +1,4 @@
-import { BarChart3, Box, Settings2, ShoppingCart } from 'lucide-react';
+import { Box, Settings2, ShoppingCart } from 'lucide-react';
 
 export default function Sidebar({ selected, onSelect }) {
   return (
@@ -27,13 +27,6 @@ export default function Sidebar({ selected, onSelect }) {
       >
         <span className="inline-block w-5 h-5 bg-[color:var(--muted)] rounded-full" />
         Gestión Pedidos
-      </button>
-      <button
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium text-[color:var(--text)] hover:bg-[color:var(--surface-muted)] transition ${selected === 'ventas' ? 'bg-[color:var(--accent)]/10 text-[color:var(--accent)]' : ''}`}
-        onClick={() => onSelect('ventas')}
-      >
-        <BarChart3 className="size-5" />
-        Reporte Ventas
       </button>
     </aside>
   );

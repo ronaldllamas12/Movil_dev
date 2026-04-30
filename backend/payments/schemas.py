@@ -17,6 +17,7 @@ class PayPalCreateOrderResponse(BaseModel):
     amount: str
     currency: str
     invoice: str
+    db_order_id: int
 
 
 class PayPalCaptureResponse(BaseModel):
@@ -31,5 +32,6 @@ class EpaycoSessionResponse(BaseModel):
     token: str | None = None
     invoice: str
     amount: float
+    db_order_id: int
     currency: str = "COP"
     provider: str = "epayco"

@@ -5,20 +5,35 @@ export const getAllOrders = async () => {
   return response.data;
 };
 
-export const updateOrderStatus = async (orderId, status, reason) => {
-  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, {
-    status,
-    reason: reason || undefined,
-  });
+export const updateOrderStatus = async (orderId, status) => {
+  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, { status });
   return response.data;
 };
 
-export const getSalesReport = async ({ startDate, endDate } = {}) => {
-  const response = await axiosClient.get('/orders/admin/sales-report', {
-    params: {
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-    },
+export const downloadOrderInvoice = async (orderId) => {
+  const viewer = window.open('', '_blank', 'noopener,noreferrer');
+  const response = await axiosClient.get(`/orders/admin/${orderId}/invoice`, {
+    responseType: 'blob',
   });
+  const blobUrl = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+  if (viewer) {
+    viewer.location.href = blobUrl;
+  } else {
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+};
+
+export const sendOrderInvoice = async (orderId) => {
+  const response = await axiosClient.post(`/orders/admin/${orderId}/invoice/send`);
+  return response.data;
+};
+
+export const markEpaycoOrderPaid = async (orderId) => {
+  const response = await axiosClient.post(`/orders/epayco/mark-paid/${orderId}`);
   return response.data;
 };
