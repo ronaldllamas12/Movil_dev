@@ -269,3 +269,8 @@ Base de Datos → almacena y devuelve información.
 Servicios externos → pasarela de pagos, notificaciones, envío.
 
 CI/CD Pipeline → automatiza pruebas y despliegues en Railway/Cloud.
+
+crear gestion de envió cancelado enviando email al cliente y reversando la transaccion
+que aparezca en usuario el nombnre del cliente
+cambiar el formato de date time
+agregar el botón de whatsapp

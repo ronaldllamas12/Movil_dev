@@ -61,7 +61,14 @@ def mark_order_cancelled(order_id: int, db: Session = Depends(get_db)):
 @router.get("/admin/", response_model=List[OrderSchema])
 def list_all_orders(current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Lista todas las órdenes para administradores."""
-    return db.query(Order).order_by(Order.created_at.desc()).all()
+    orders = db.query(Order).order_by(Order.created_at.desc()).all()
+    # Mapear user_full_name
+    user_ids = [order.user_id for order in orders]
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_map = {user.id: user.full_name for user in users}
+    for order in orders:
+        order.user_full_name = user_map.get(order.user_id)
+    return orders
 
 @router.put("/admin/{order_id}/status", response_model=OrderSchema)
 def update_order_status_admin(order_id: int, request: UpdateStatusRequest, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -75,6 +82,8 @@ def get_order_items_admin(order_id: int, current_admin: User = Depends(get_curre
     if not order:
         from database.core.errors import NotFoundError
         raise NotFoundError(f"Orden {order_id} no encontrada.")
+    user = db.query(User).filter(User.id == order.user_id).first()
+    order.user_full_name = user.full_name if user else None
     return order
 
 @router.get("/admin/{order_id}/invoice")

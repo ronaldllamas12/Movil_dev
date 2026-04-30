@@ -34,3 +34,4 @@ class OrderSchema(BaseModel):
     invoice_email_sent_to: str | None = None
     invoice_email_sent_at: datetime | None = None
     items: List[OrderItemSchema]
+    user_full_name: str | None = None

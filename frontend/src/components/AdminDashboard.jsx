@@ -2,6 +2,7 @@ import { FileText, Loader2, Mail, Pencil, Plus, Power, Settings2, Shield, Trash2
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCartTaxSettings, updateCartTaxSettings } from '../api/services/cartService';
+import { downloadOrderInvoice, getAllOrders, sendOrderInvoice, updateOrderStatus } from '../api/services/ordersService';
 import {
     createProduct,
     deleteProduct,
@@ -10,7 +11,6 @@ import {
     updateProduct,
     uploadProductImage,
 } from '../api/services/productsService';
-import { downloadOrderInvoice, getAllOrders, sendOrderInvoice, updateOrderStatus } from '../api/services/ordersService';
 import { useCarrito } from '../context/CarritoContext';
 import Sidebar from './Sidebar';
 
@@ -1039,9 +1039,11 @@ export default function AdminDashboard() {
                         <React.Fragment key={`order-group-${order.id}`}>
                           <tr key={`order-${order.id}`} className="border-t border-slate-100">
                             <td className="px-4 py-3 text-slate-500">#{order.id}</td>
-                            <td className="px-4 py-3 text-slate-700">Usuario #{order.user_id}</td>
                             <td className="px-4 py-3 text-slate-700">
-                              {new Date(order.created_at).toLocaleDateString('es-CO')}
+                              {order.customer_name || order.user_full_name || `Usuario #${order.user_id}`}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {new Date(order.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
@@ -1134,7 +1136,7 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                                       <div className="rounded-xl border border-slate-200 p-3">
                                         <p className="text-xs font-semibold text-slate-500 uppercase">Receptor</p>
-                                        <p className="text-slate-800">{order.customer_name || 'No registrado'}</p>
+                                        <p className="text-slate-800">{order.customer_name || order.user_full_name || 'No registrado'}</p>
                                         <p className="text-slate-600 break-all">{order.customer_email || 'Sin correo de factura'}</p>
                                       </div>
                                       <div className="rounded-xl border border-slate-200 p-3">
@@ -1166,7 +1168,7 @@ export default function AdminDashboard() {
                                         <p className="text-slate-800 break-all">{order.invoice_email_sent_to || 'Pendiente'}</p>
                                         <p className="text-slate-600">
                                           {order.invoice_email_sent_at
-                                            ? new Date(order.invoice_email_sent_at).toLocaleString('es-CO')
+                                            ? new Date(order.invoice_email_sent_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
                                             : 'Sin fecha de envio'}
                                         </p>
                                         {order.status === 'paid' ? (
@@ -1184,7 +1186,7 @@ export default function AdminDashboard() {
                                       <div className="rounded-xl border border-slate-200 p-3">
                                         <p className="text-xs font-semibold text-slate-500 uppercase">Pago confirmado</p>
                                         <p className="text-slate-800">
-                                          {order.paid_at ? new Date(order.paid_at).toLocaleString('es-CO') : 'Pendiente'}
+                                          {order.paid_at ? new Date(order.paid_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Pendiente'}
                                         </p>
                                       </div>
                                     </div>
