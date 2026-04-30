@@ -1,3 +1,42 @@
+import os
+from backend.cloudinary_utils import upload_image_to_cloudinary
+from fastapi import BackgroundTasks
+import smtplib
+from email.message import EmailMessage
+# Genera el PDF de la factura y retorna la ruta al archivo generado
+def generate_invoice_pdf(db, order):
+    # Aquí deberías construir el diccionario 'invoice' y el buffer QR según tu lógica de negocio
+    # Por ahora, se asume que existen funciones auxiliares para esto
+    invoice = order.to_invoice_dict() if hasattr(order, 'to_invoice_dict') else {}
+    qr_buffer = BytesIO()  # Genera el QR si es necesario
+    pdf_path = Path(f"invoices/invoice_{order.id}.pdf")
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    render_invoice_pdf(pdf_path=pdf_path, invoice=invoice, qr_buffer=qr_buffer)
+    return pdf_path
+
+# Envía la factura por correo electrónico (stub, debes adaptar a tu lógica real)
+def send_invoice_email(recipient_email, invoice_pdf_path, order):
+    # Configuración básica, reemplaza con tu lógica real de envío (Mailtrap, SMTP, etc.)
+    try:
+        smtp_host = os.getenv("SMTP_HOST", "smtp.mailtrap.io")
+        smtp_port = int(os.getenv("SMTP_PORT", 587))
+        smtp_user = os.getenv("SMTP_USERNAME", "")
+        smtp_pass = os.getenv("SMTP_PASSWORD", "")
+        msg = EmailMessage()
+        msg["Subject"] = f"Factura de tu pedido #{order.id}"
+        msg["From"] = smtp_user or "no-reply@movildev.com"
+        msg["To"] = recipient_email
+        msg.set_content("Adjuntamos la factura de tu pedido. ¡Gracias por tu compra!")
+        with open(invoice_pdf_path, "rb") as f:
+            msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename=os.path.basename(invoice_pdf_path))
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            if smtp_user and smtp_pass:
+                server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"[EMAIL ERROR] No se pudo enviar la factura: {e}")
+        return False
 """Plantilla PDF para la representacion grafica de factura."""
 
 from __future__ import annotations

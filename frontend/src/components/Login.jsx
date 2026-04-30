@@ -193,7 +193,7 @@ export default function Login() {
       }
 
       window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
+        client_id: VITE_GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
         auto_select: false,
         button_auto_select: false,

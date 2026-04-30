@@ -191,7 +191,7 @@ def _ensure_paid_invoice(db: Session, order: Order) -> None:
 
 def ensure_order_invoice_pdf(db: Session, order: Order):
     """Genera o regenera el PDF de factura y guarda su ruta en la orden."""
-    from orders.invoice_service import generate_invoice_pdf
+    from orders.invoice_template import generate_invoice_pdf
 
     pdf_path = generate_invoice_pdf(db, order)
     order.invoice_pdf_path = str(pdf_path)
@@ -210,7 +210,8 @@ def send_order_invoice_email(db: Session, order_id: int, *, force: bool = False)
     if not order.customer_email:
         raise ConflictError("La orden no tiene correo de facturación.")
 
-    from orders.invoice_service import send_invoice_email
+
+    from orders.invoice_template import send_invoice_email
 
     pdf_path = ensure_order_invoice_pdf(db, order)
     recipient = order.customer_email.strip().lower()

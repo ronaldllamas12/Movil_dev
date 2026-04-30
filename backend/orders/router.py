@@ -7,8 +7,8 @@ from fastapi.responses import FileResponse
 from orders.models import Order, OrderItem
 from orders.schemas import OrderSchema
 from orders.services import (create_order_from_cart, ensure_order_invoice_pdf,
-                             mark_order_paid, send_order_invoice_email,
-                             update_order_status)
+                            mark_order_paid, send_order_invoice_email,
+                            update_order_status)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from users.models import User
