@@ -5,6 +5,63 @@ from database.core.database import Base
 
 
 class Order(Base):
+    def to_invoice_dict(self):
+        # Estructura mínima de ejemplo, debes adaptarla a tus datos reales
+        return {
+            "issuer": {
+                "name": "Movil Dev S.A.S.",
+                "nit": "123456789-0",
+            },
+            "buyer": {
+                "name": self.customer_name or "Cliente",
+                "nit": "No aplica",
+                "email": self.customer_email or "No especificado",
+                "delivery_address": self.delivery_address or "No especificada",
+            },
+            "numbering": {
+                "prefix": "MDV",
+                "number": str(self.id),
+                "authorized_range": "",
+                "validity": "",
+            },
+            "tax_quality": "Responsable de IVA",
+            "tech_provider": {
+                "software_name": "Sistema Movil Dev",
+                "name": "",
+                "nit": "",
+            },
+            "totals": {
+                "subtotal": float(self.subtotal),
+                "tax": float(self.tax),
+                "iva": float(self.tax),
+                "consumption_tax": 0.0,
+                "plastic_bag_tax": 0.0,
+                "line_count": len(self.items),
+                "total": float(self.total),
+            },
+            "document_name": "Factura de venta",
+            "invoice_number": str(self.id),
+            "issued_at": str(self.created_at),
+            "payment": {
+                "form": self.payment_provider or "Pago electrónico",
+                "method": self.payment_method or "Online",
+            },
+            "items": [
+                item.to_invoice_dict() if hasattr(item, 'to_invoice_dict') else {
+                    "line": idx + 1,
+                    "name": getattr(item, 'name', ""),
+                    "quantity": getattr(item, 'quantity', getattr(item, 'qty', 1)),
+                    "unit": getattr(item, 'unit', "und"),
+                    "description": getattr(item, 'description', ""),
+                    "code": getattr(item, 'code', ""),
+                    "taxes": getattr(item, 'taxes', []),
+                    "unit_price": float(getattr(item, 'unit_price', getattr(item, 'price', 0))),
+                    "line_total": float(getattr(item, 'line_total', getattr(item, 'total', getattr(item, 'price', 0) * getattr(item, 'quantity', getattr(item, 'qty', 1))))),
+                }
+                for idx, item in enumerate(self.items)
+            ],
+            "cufe": getattr(self, 'cufe', ""),
+        }
     __tablename__ = "orders"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)

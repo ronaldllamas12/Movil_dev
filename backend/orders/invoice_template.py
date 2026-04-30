@@ -1,3 +1,5 @@
+
+from __future__ import annotations
 import os
 from backend.cloudinary_utils import upload_image_to_cloudinary
 from fastapi import BackgroundTasks
@@ -8,8 +10,18 @@ def generate_invoice_pdf(db, order):
     # Aquí deberías construir el diccionario 'invoice' y el buffer QR según tu lógica de negocio
     # Por ahora, se asume que existen funciones auxiliares para esto
     invoice = order.to_invoice_dict() if hasattr(order, 'to_invoice_dict') else {}
-    qr_buffer = BytesIO()  # Genera el QR si es necesario
-    pdf_path = Path(f"invoices/invoice_{order.id}.pdf")
+    import qrcode
+    from io import BytesIO
+    qr_buffer = BytesIO()
+    qr_data = f"Factura {order.id} - {getattr(order, 'customer_name', '')}"
+    qr = qrcode.make(qr_data)
+    qr.save(qr_buffer, format="PNG")
+    qr_buffer.seek(0)
+    # Siempre usar la ruta absoluta desde la raíz del proyecto en generated/invoices
+    base_dir = Path(__file__).parent.parent.parent.resolve()
+    invoices_dir = base_dir / "generated" / "invoices"
+    invoices_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = invoices_dir / f"invoice_{order.id}.pdf"
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     render_invoice_pdf(pdf_path=pdf_path, invoice=invoice, qr_buffer=qr_buffer)
     return pdf_path
@@ -38,8 +50,6 @@ def send_invoice_email(recipient_email, invoice_pdf_path, order):
         print(f"[EMAIL ERROR] No se pudo enviar la factura: {e}")
         return False
 """Plantilla PDF para la representacion grafica de factura."""
-
-from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
@@ -408,6 +418,8 @@ def render_invoice_pdf(
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph("Representacion grafica generada por Movil Dev.", styles["tiny"]))
 
+    print(f"[DEBUG] Generando PDF en: {pdf_path}")
+    print(f"[DEBUG] Cantidad de elementos en story: {len(story)}")
     doc = SimpleDocTemplate(
         str(pdf_path),
         pagesize=letter,
@@ -418,4 +430,5 @@ def render_invoice_pdf(
         title=invoice["document_name"],
     )
     doc.build(story)
+    print(f"[DEBUG] PDF generado correctamente: {pdf_path}")
     return pdf_path

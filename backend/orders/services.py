@@ -41,7 +41,7 @@ def create_order_from_cart(db: Session, user: User) -> Order:
         ) for ci in items
     ]
     settings = db.query(Product).first()  # Dummy, replace with real tax/shipping
-    totals = compute_cart_totals(items=cart_item_responses, tax_percent=21, shipping_fee=0)
+    totals = compute_cart_totals(items=cart_item_responses, tax_percent=19, shipping_fee=0)
 
     # Crear la orden
     order = Order(

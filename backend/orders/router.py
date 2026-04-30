@@ -92,14 +92,21 @@ def download_order_invoice_admin(order_id: int, current_admin: User = Depends(ge
         db.commit()
         db.refresh(order)
 
+    from pathlib import Path
+    import os
+    # Siempre buscar en generated/invoices en la raíz del proyecto
+    base_dir = Path(__file__).parent.parent.parent.resolve()
+    invoices_dir = base_dir / "generated" / "invoices"
     pdf_path = Path(order.invoice_pdf_path)
+    if not pdf_path.is_absolute() or invoices_dir not in pdf_path.parents:
+        pdf_path = invoices_dir / pdf_path.name
     if not pdf_path.exists() or not pdf_path.is_file():
         pdf_path = ensure_order_invoice_pdf(db, order)
         db.commit()
         db.refresh(order)
-
+    print(f"[DEBUG] Sirviendo PDF desde: {pdf_path.resolve()}")
     return FileResponse(
-        path=str(pdf_path),
+        path=str(pdf_path.resolve()),
         media_type="application/pdf",
         filename=pdf_path.name,
     )
