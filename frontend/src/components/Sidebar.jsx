@@ -1,4 +1,4 @@
-import { Box, Settings2, ShoppingCart } from 'lucide-react';
+import { Box, Settings2, ShoppingCart, Package } from 'lucide-react';
 
 export default function Sidebar({ selected, onSelect }) {
   return (
@@ -22,10 +22,10 @@ export default function Sidebar({ selected, onSelect }) {
         Gestión Productos
       </button>
       <button
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium text-[color:var(--text)] hover:bg-[color:var(--surface-muted)] transition ${selected === 'pedidos' ? 'bg-[color:var(--accent)]/10 text-[color:var(--accent)]' : ''}`}
+         className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium text-[color:var(--text)] hover:bg-[color:var(--surface-muted)] transition ${selected === 'pedidos' ? 'bg-[color:var(--accent)]/10 text-[color:var(--accent)]' : ''}`}
         onClick={() => onSelect('pedidos')}
       >
-        <span className="inline-block w-5 h-5 bg-[color:var(--muted)] rounded-full" />
+        <Package className="size-5" />
         Gestión Pedidos
       </button>
     </aside>
