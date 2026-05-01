@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from cart.services import compute_cart_totals, list_items_for_user
+from cart.services import clear_user_cart, compute_cart_totals, list_items_for_user
 from orders.models import (
     Order,
     OrderItem,
@@ -247,6 +247,8 @@ def update_order_status(
     if not order:
         raise NotFoundError("Orden no encontrada.")
 
+    previous_status = order.status
+
     _transition_order_status(
         db,
         order=order,
@@ -254,6 +256,8 @@ def update_order_status(
         actor_user_id=actor_user_id,
         reason=reason,
     )
+    if status == OrderStatus.PAID and previous_status != OrderStatus.PAID:
+        clear_user_cart(db, user_id=order.user_id)
     if status == OrderStatus.PAID:
         _ensure_paid_invoice(db, order)
 
@@ -278,7 +282,8 @@ def mark_order_paid(
     if payment_method:
         order.payment_method = payment_method
 
-    if order.status != OrderStatus.PAID:
+    became_paid = order.status != OrderStatus.PAID
+    if became_paid:
         _transition_order_status(
             db,
             order=order,
@@ -286,6 +291,7 @@ def mark_order_paid(
             actor_user_id=None,
             reason="Confirmacion de pasarela",
         )
+        clear_user_cart(db, user_id=order.user_id)
 
     _ensure_paid_invoice(db, order)
     db.commit()

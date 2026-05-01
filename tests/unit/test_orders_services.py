@@ -2,7 +2,7 @@
 
 import pytest
 
-from cart.services import add_item_for_user
+from cart.services import add_item_for_user, list_items_for_user
 from database.core.errors import ConflictError
 from orders.services import create_order_from_cart, update_order_status
 
@@ -57,3 +57,4 @@ def test_update_order_status_changes_existing_order(db_session, make_user, make_
     paid_order = update_order_status(db_session, order.id, "paid")
 
     assert paid_order.status == "paid"
+    assert list_items_for_user(db_session, user_id=user.id) == []

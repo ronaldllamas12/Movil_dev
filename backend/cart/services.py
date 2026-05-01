@@ -135,6 +135,13 @@ def list_items_for_user(db: Session, *, user_id: int) -> list[CartItem]:
     return list(db.scalars(stmt).all())
 
 
+def clear_user_cart(db: Session, *, user_id: int) -> None:
+    """Elimina todos los ítems del carrito de un usuario autenticado."""
+    db.query(CartItem).filter(CartItem.user_id == user_id).delete(
+        synchronize_session=False
+    )
+
+
 def compute_cart_totals(
     *,
     items: list[CartItemResponse],
