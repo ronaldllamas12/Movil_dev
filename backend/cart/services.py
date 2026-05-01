@@ -156,3 +156,106 @@ def compute_cart_totals(
         shipping_fee=round(shipping_fee, 2),
         total=round(total, 2),
     )
+
+
+def add_item_for_session(
+    db: Session,
+    *,
+    session_id: str,
+    product_id: int,
+    quantity: int,
+) -> CartItem:
+    """Agrega o actualiza un item del carrito para una sesion anonima."""
+    if quantity <= 0:
+        raise ConflictError("La cantidad debe ser mayor que cero.")
+
+    product = get_product_for_cart(db, product_id)
+
+    existing_item = db.scalar(
+        select(CartItem).where(
+            CartItem.session_id == session_id,
+            CartItem.product_id == product_id,
+        )
+    )
+
+    current_qty = existing_item.quantity if existing_item else 0
+    target_qty = current_qty + quantity
+
+    if target_qty > product.cantidad_stock:
+        raise ConflictError(
+            "Stock insuficiente para la cantidad solicitada. "
+            f"Stock disponible: {product.cantidad_stock}."
+        )
+
+    if existing_item:
+        existing_item.quantity = target_qty
+        existing_item.price = float(product.precio_unitario)
+        db.commit()
+        db.refresh(existing_item)
+        return existing_item
+
+    new_item = CartItem(
+        user_id=None,
+        session_id=session_id,
+        product_id=product_id,
+        quantity=quantity,
+        price=float(product.precio_unitario),
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
+
+
+def remove_item_for_session(db: Session, *, session_id: str, cart_item_id: int) -> None:
+    """Elimina un item del carrito anonimo por ID."""
+    item = db.scalar(
+        select(CartItem).where(
+            CartItem.id == cart_item_id,
+            CartItem.session_id == session_id,
+        )
+    )
+    if not item:
+        raise NotFoundError("Item de carrito no encontrado.")
+    db.delete(item)
+    db.commit()
+
+
+def list_items_for_session(db: Session, *, session_id: str) -> list[CartItem]:
+    """Lista los items del carrito de una sesion anonima."""
+    return list(
+        db.scalars(
+            select(CartItem)
+            .where(CartItem.session_id == session_id)
+            .order_by(CartItem.id.asc())
+        ).all()
+    )
+
+
+def clear_session_cart(db: Session, *, session_id: str) -> None:
+    """Elimina todos los items del carrito de una sesion anonima."""
+    db.query(CartItem).filter(CartItem.session_id == session_id).delete()
+    db.commit()
+
+
+def merge_session_cart_to_user(db: Session, *, session_id: str, user_id: int) -> None:
+    """Mueve items anonimos al carrito del usuario tras login."""
+    session_items = list_items_for_session(db, session_id=session_id)
+    if not session_items:
+        return
+
+    for session_item in session_items:
+        try:
+            add_item_for_user(
+                db,
+                user_id=user_id,
+                product_id=session_item.product_id,
+                quantity=session_item.quantity,
+            )
+        except ConflictError:
+            pass
+        db.delete(session_item)
+
+    db.commit()
+
+

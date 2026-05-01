@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Index,
     JSON,
     Boolean,
     CheckConstraint,
@@ -26,6 +27,7 @@ class Product(Base):
             "categoria IN ('premium', 'gama media', 'economico')",
             name="ck_products_categoria",
         ),
+        Index("ix_products_search", "marca", "categoria", "is_active"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -108,3 +110,4 @@ class Product(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
