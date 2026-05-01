@@ -99,6 +99,8 @@ const REFUND_BASE_DRAFT = {
   reason: '',
 };
 
+const REFUNDABLE_STATUSES = new Set(['paid', 'processing', 'shipped', 'delivered']);
+
 function getStatusLabel(status) {
   return ORDER_STATUS_META[status]?.label || status;
 }
@@ -138,6 +140,10 @@ function toRefundTotal(order) {
 
 function toRefundRemaining(order) {
   return Math.max(Number(order?.total || 0) - toRefundTotal(order), 0);
+}
+
+function canRefundOrder(order) {
+  return REFUNDABLE_STATUSES.has(order?.status) && toRefundRemaining(order) > 0;
 }
 
 function toOrderDisplayUser(order) {
@@ -782,6 +788,16 @@ export default function AdminDashboard() {
   };
 
   const handleSubmitRefund = async (order) => {
+    if (!REFUNDABLE_STATUSES.has(order?.status)) {
+      setErrorMsg(`La orden está en estado '${getStatusLabel(order?.status)}' y no permite reembolsos.`);
+      return;
+    }
+
+    if (toRefundRemaining(order) <= 0) {
+      setErrorMsg('La orden ya fue reembolsada completamente.');
+      return;
+    }
+
     resetMessages();
     setIsSaving(true);
 
@@ -1475,11 +1491,14 @@ export default function AdminDashboard() {
                                                           <option value="total">Total</option>
                                                         </select>
                                                         <input type="number" min="0.01" step="0.01" value={draft.amount} onChange={(event) => handleRefundDraftChange(order.id, 'amount', event.target.value)} placeholder="Monto" disabled={draft.refund_type === 'total'} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                                                        <button type="button" disabled={isSaving || refundRemaining <= 0} onClick={() => handleSubmitRefund(order)} className="inline-flex items-center justify-center gap-1 rounded-lg bg-violet-600 px-2 py-1.5 text-white hover:bg-violet-500 disabled:opacity-60 text-xs font-semibold">
+                                                        <button type="button" disabled={isSaving || !canRefundOrder(order)} onClick={() => handleSubmitRefund(order)} className="inline-flex items-center justify-center gap-1 rounded-lg bg-violet-600 px-2 py-1.5 text-white hover:bg-violet-500 disabled:opacity-60 text-xs font-semibold">
                                                           <Undo2 className="size-3" />
                                                           Reembolsar
                                                         </button>
                                                       </div>
+                                                      {!REFUNDABLE_STATUSES.has(order.status) ? (
+                                                        <p className="text-[11px] text-slate-500">No se puede reembolsar en estado {getStatusLabel(order.status)}.</p>
+                                                      ) : null}
                                                       <textarea value={draft.reason} onChange={(event) => handleRefundDraftChange(order.id, 'reason', event.target.value)} placeholder="Motivo del reembolso (opcional)" className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs min-h-16 bg-white" />
                                                     </div>
                                                   </div>
