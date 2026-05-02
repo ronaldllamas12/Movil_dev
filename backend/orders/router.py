@@ -209,3 +209,52 @@ def send_order_invoice_admin(
 ):
     return send_order_invoice_email(db, order_id, force=True)
 
+
+@router.get("/admin/reports/sales")
+def get_sales_report(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint para obtener un reporte básico de ventas.
+    Devuelve métricas de ventas, estados de órdenes y últimas órdenes.
+    """
+    all_orders = db.query(Order).all()
+    
+    # Cálculos básicos
+    total_orders = len(all_orders)
+    paid_orders = [o for o in all_orders if o.status in {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED}]
+    
+    total_revenue = sum(float(o.total) for o in paid_orders)
+    total_tax = sum(float(o.tax) for o in paid_orders)
+    total_refunded = sum(float(o.refunded_total) for o in paid_orders)
+    
+    # Órdenes por estado
+    status_breakdown = {}
+    for status in OrderStatus.ALL:
+        status_breakdown[status] = len([o for o in all_orders if o.status == status])
+    
+    # Últimas 10 órdenes
+    recent_orders = sorted(all_orders, key=lambda x: x.created_at, reverse=True)[:10]
+    
+    recent_orders_data = []
+    for order in recent_orders:
+        user = db.query(User).filter(User.id == order.user_id).first()
+        recent_orders_data.append({
+            "id": order.id,
+            "customer_name": order.customer_name or user.full_name if user else "Unknown",
+            "total": float(order.total),
+            "status": order.status,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+        })
+    
+    return {
+        "total_orders": total_orders,
+        "total_revenue": round(total_revenue, 2),
+        "total_tax": round(total_tax, 2),
+        "total_refunded": round(total_refunded, 2),
+        "average_order_value": round(total_revenue / len(paid_orders), 2) if paid_orders else 0,
+        "status_breakdown": status_breakdown,
+        "recent_orders": recent_orders_data,
+    }
+

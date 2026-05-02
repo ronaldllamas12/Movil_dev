@@ -33,7 +33,7 @@ import { useCarrito } from './context/CarritoContext';
 
 // Componente del botón flotante de WhatsApp
 const WhatsAppButton = () => {
-  const phoneNumber = "3187387340"; // Reemplaza con tu número de WhatsApp
+  const phoneNumber = "3165364564"; // 
   const message = "Hola, me gustaría obtener más información sobre sus productos.";
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
