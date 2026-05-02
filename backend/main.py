@@ -132,5 +132,7 @@ app.include_router(payments_router)
 
 # Importa y registra el router de órdenes
 from orders.router import router as orders_router
+from orders.whatsapp_router import router as whatsapp_admin_router
 
 app.include_router(orders_router)
+app.include_router(whatsapp_admin_router)

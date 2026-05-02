@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from users.models import User
 
 from database.core.errors import ConflictError, ForbiddenError, NotFoundError
+from orders.whatsapp_service import send_order_status_whatsapp
 
 _CANCELLATION_WINDOW_MINUTES = int(os.getenv("ORDER_CANCELLATION_WINDOW_MINUTES", "30"))
 
@@ -263,6 +264,15 @@ def update_order_status(
 
     db.commit()
     db.refresh(order)
+
+    send_order_status_whatsapp(
+        phone=order.customer_phone,
+        order_id=order.id,
+        status=order.status,
+        total=float(order.total) if order.total is not None else None,
+        address=order.delivery_address,
+    )
+
     return order
 
 
@@ -296,6 +306,16 @@ def mark_order_paid(
     _ensure_paid_invoice(db, order)
     db.commit()
     db.refresh(order)
+
+    if became_paid:
+        send_order_status_whatsapp(
+            phone=order.customer_phone,
+            order_id=order.id,
+            status=order.status,
+            total=float(order.total) if order.total is not None else None,
+            address=order.delivery_address,
+        )
+
     return order
 
 
@@ -467,7 +487,8 @@ def send_order_invoice_email(db: Session, order_id: int, *, force: bool = False)
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise NotFoundError("Orden no encontrada.")
-    if order.status != OrderStatus.PAID:
+    PAID_STATUSES = {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.REFUNDED}
+    if order.status not in PAID_STATUSES:
         raise ConflictError("Solo se puede enviar factura de una orden con pago exitoso.")
     if not order.customer_email:
         raise ConflictError("La orden no tiene correo de facturacion.")

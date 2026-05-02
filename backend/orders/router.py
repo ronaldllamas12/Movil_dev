@@ -175,7 +175,8 @@ def download_order_invoice_admin(
     if not order:
         raise NotFoundError(f"Orden {order_id} no encontrada.")
 
-    if order.status != OrderStatus.PAID:
+    PAID_STATUSES = {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.REFUNDED}
+    if order.status not in PAID_STATUSES:
         raise NotFoundError("La orden aun no tiene pago exitoso.")
 
     if not order.invoice_pdf_path:
