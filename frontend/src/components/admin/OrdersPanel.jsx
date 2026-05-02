@@ -319,7 +319,7 @@ export default function OrdersPanel() {
                                 </button>
                               ))}
 
-                              {order.status === 'paid' ? (
+                              {['paid', 'processing', 'shipped', 'delivered', 'refunded'].includes(order.status) ? (
                                 <button
                                   type="button"
                                   disabled={isSaving || !order.customer_email}
@@ -331,7 +331,7 @@ export default function OrdersPanel() {
                                 </button>
                               ) : null}
 
-                              {order.invoice_pdf_path ? (
+                              {['paid', 'processing', 'shipped', 'delivered', 'refunded'].includes(order.status) ? (
                                 <button
                                   type="button"
                                   disabled={isSaving}
@@ -339,7 +339,7 @@ export default function OrdersPanel() {
                                   className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                                 >
                                   <FileText className="size-3" />
-                                  Factura
+                                  Ver factura
                                 </button>
                               ) : null}
                             </div>

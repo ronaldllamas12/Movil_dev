@@ -1,4 +1,4 @@
-import { Box, Settings2, ShoppingCart, Package } from 'lucide-react';
+import { Box, MessageCircle, Package, Settings2, ShoppingCart } from 'lucide-react';
 
 export default function Sidebar({ selected, onSelect }) {
   return (
@@ -27,6 +27,13 @@ export default function Sidebar({ selected, onSelect }) {
       >
         <Package className="size-5" />
         Gestión Pedidos
+      </button>
+      <button
+        className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium text-[color:var(--text)] hover:bg-[color:var(--surface-muted)] transition ${selected === 'whatsapp' ? 'bg-[color:var(--accent)]/10 text-[color:var(--accent)]' : ''}`}
+        onClick={() => onSelect('whatsapp')}
+      >
+        <MessageCircle className="size-5" />
+        WhatsApp
       </button>
     </aside>
   );

@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import os
+from pathlib import Path
 from backend.cloudinary_utils import upload_image_to_cloudinary
 from fastapi import BackgroundTasks
 import smtplib
@@ -26,22 +27,38 @@ def generate_invoice_pdf(db, order):
     render_invoice_pdf(pdf_path=pdf_path, invoice=invoice, qr_buffer=qr_buffer)
     return pdf_path
 
-# Envía la factura por correo electrónico (stub, debes adaptar a tu lógica real)
+# Envía la factura por correo electrónico usando SMTP (Mailtrap o cualquier proveedor)
 def send_invoice_email(recipient_email, invoice_pdf_path, order):
-    # Configuración básica, reemplaza con tu lógica real de envío (Mailtrap, SMTP, etc.)
     try:
-        smtp_host = os.getenv("SMTP_HOST", "smtp.mailtrap.io")
+        smtp_host = os.getenv("SMTP_HOST", "live.smtp.mailtrap.io")
         smtp_port = int(os.getenv("SMTP_PORT", 587))
-        smtp_user = os.getenv("SMTP_USERNAME", "")
-        smtp_pass = os.getenv("SMTP_PASSWORD", "")
+        smtp_user = os.getenv("SMTP_USER", "").strip()
+        smtp_pass = os.getenv("SMTP_PASSWORD", "").strip()
+        mail_from = os.getenv("MAIL_FROM", smtp_user or "no-reply@movildev.com").strip()
+        mail_from_name = os.getenv("MAIL_FROM_NAME", "Movil Dev").strip()
+
         msg = EmailMessage()
-        msg["Subject"] = f"Factura de tu pedido #{order.id}"
-        msg["From"] = smtp_user or "no-reply@movildev.com"
+        msg["Subject"] = f"Factura de tu pedido #{order.id} - Movil Dev"
+        msg["From"] = f"{mail_from_name} <{mail_from}>"
         msg["To"] = recipient_email
-        msg.set_content("Adjuntamos la factura de tu pedido. ¡Gracias por tu compra!")
+        msg.set_content(
+            f"Hola,\n\n"
+            f"Adjuntamos la factura de tu pedido #{order.id}.\n"
+            f"¡Gracias por tu compra en Movil Dev!\n\n"
+            f"Si tienes alguna pregunta, responde a este correo.\n\n"
+            f"Equipo Movil Dev"
+        )
         with open(invoice_pdf_path, "rb") as f:
-            msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename=os.path.basename(invoice_pdf_path))
+            msg.add_attachment(
+                f.read(),
+                maintype="application",
+                subtype="pdf",
+                filename=f"factura_pedido_{order.id}.pdf",
+            )
         with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             if smtp_user and smtp_pass:
                 server.login(smtp_user, smtp_pass)
             server.send_message(msg)

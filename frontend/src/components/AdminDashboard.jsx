@@ -5,6 +5,7 @@ import { useCarrito } from '../context/CarritoContext';
 import CartSettingsPanel from './admin/CartSettingsPanel';
 import OrdersPanel from './admin/OrdersPanel';
 import ProductsPanel from './admin/ProductsPanel';
+import WhatsAppPanel from './admin/WhatsAppPanel';
 import Sidebar from './Sidebar';
 
 export default function AdminDashboard() {
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
         {selectedModule === 'carrito' ? <CartSettingsPanel /> : null}
         {selectedModule === 'productos' ? <ProductsPanel /> : null}
         {selectedModule === 'pedidos' ? <OrdersPanel /> : null}
+        {selectedModule === 'whatsapp' ? <WhatsAppPanel /> : null}
       </main>
     </div>
   );
