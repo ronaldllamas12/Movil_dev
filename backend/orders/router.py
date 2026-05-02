@@ -20,7 +20,8 @@ from orders.services import (
     send_order_invoice_email,
     update_order_status,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 from users.models import User
 
 from database.core.database import get_db
@@ -218,31 +219,55 @@ def get_sales_report(
     """
     Endpoint para obtener un reporte básico de ventas.
     Devuelve métricas de ventas, estados de órdenes y últimas órdenes.
+    Optimizado con joins y agregados SQL para evitar N+1 queries.
     """
-    all_orders = db.query(Order).all()
+    # Total de órdenes (usando SQL count)
+    total_orders = db.query(func.count(Order.id)).scalar() or 0
     
-    # Cálculos básicos
-    total_orders = len(all_orders)
-    paid_orders = [o for o in all_orders if o.status in {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED}]
+    # Definir estados pagados
+    paid_statuses = {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED}
     
-    total_revenue = sum(float(o.total) for o in paid_orders)
-    total_tax = sum(float(o.tax) for o in paid_orders)
-    total_refunded = sum(float(o.refunded_total) for o in paid_orders)
+    # Cálculos con agregados SQL para órdenes pagadas
+    paid_aggregates = db.query(
+        func.sum(Order.total).label("total_revenue"),
+        func.sum(Order.tax).label("total_tax"),
+        func.count(Order.id).label("paid_count")
+    ).filter(Order.status.in_(paid_statuses)).first()
     
-    # Órdenes por estado
+    total_revenue = float(paid_aggregates.total_revenue or 0)
+    total_tax = float(paid_aggregates.total_tax or 0)
+    paid_count = paid_aggregates.paid_count or 0
+    
+    # Cálculo de total reembolsado
+    total_refunded = 0.0
+    refund_query = db.query(
+        func.sum(Order.refunded_total).label("total_refunded")
+    ).filter(Order.status.in_(paid_statuses)).first()
+    if refund_query.total_refunded:
+        total_refunded = float(refund_query.total_refunded)
+    
+    # Desglose por estado usando agregados SQL
     status_breakdown = {}
     for status in OrderStatus.ALL:
-        status_breakdown[status] = len([o for o in all_orders if o.status == status])
+        count = db.query(func.count(Order.id)).filter(Order.status == status).scalar() or 0
+        status_breakdown[status] = count
     
-    # Últimas 10 órdenes
-    recent_orders = sorted(all_orders, key=lambda x: x.created_at, reverse=True)[:10]
+    # Últimas 10 órdenes con usuario prefetched via join
+    recent_orders_query = (
+        db.query(Order, User)
+        .outerjoin(User, Order.user_id == User.id)
+        .order_by(Order.created_at.desc())
+        .limit(10)
+        .all()
+    )
     
     recent_orders_data = []
-    for order in recent_orders:
-        user = db.query(User).filter(User.id == order.user_id).first()
+    for order, user in recent_orders_query:
+        # Fijar operator precedence: customer_name > user.full_name > "Unknown"
+        customer_name = order.customer_name or (user.full_name if user else "Unknown")
         recent_orders_data.append({
             "id": order.id,
-            "customer_name": order.customer_name or user.full_name if user else "Unknown",
+            "customer_name": customer_name,
             "total": float(order.total),
             "status": order.status,
             "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -253,7 +278,7 @@ def get_sales_report(
         "total_revenue": round(total_revenue, 2),
         "total_tax": round(total_tax, 2),
         "total_refunded": round(total_refunded, 2),
-        "average_order_value": round(total_revenue / len(paid_orders), 2) if paid_orders else 0,
+        "average_order_value": round(total_revenue / paid_count, 2) if paid_count > 0 else 0,
         "status_breakdown": status_breakdown,
         "recent_orders": recent_orders_data,
     }

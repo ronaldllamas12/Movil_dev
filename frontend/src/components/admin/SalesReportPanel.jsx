@@ -206,7 +206,9 @@ export default function SalesReportPanel() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {new Date(order.created_at).toLocaleDateString('es-CO')}
+                    {order.created_at
+                      ? new Date(order.created_at).toLocaleDateString('es-CO')
+                      : '—'}
                   </td>
                 </tr>
               ))}
