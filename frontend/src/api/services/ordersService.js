@@ -5,8 +5,11 @@ export const getAllOrders = async () => {
   return response.data;
 };
 
-export const updateOrderStatus = async (orderId, status) => {
-  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, { status });
+export const updateOrderStatus = async (orderId, status, reason = '') => {
+  const response = await axiosClient.put(`/orders/admin/${orderId}/status`, {
+    status,
+    reason: reason || null,
+  });
   return response.data;
 };
 
@@ -30,6 +33,11 @@ export const downloadOrderInvoice = async (orderId) => {
 
 export const sendOrderInvoice = async (orderId) => {
   const response = await axiosClient.post(`/orders/admin/${orderId}/invoice/send`);
+  return response.data;
+};
+
+export const refundOrder = async (orderId, payload) => {
+  const response = await axiosClient.post(`/orders/admin/${orderId}/refund`, payload);
   return response.data;
 };
 

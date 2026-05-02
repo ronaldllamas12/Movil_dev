@@ -180,6 +180,8 @@ def ensure_orders_invoice_columns(engine: Engine) -> None:
         "payment_provider": "VARCHAR(40)",
         "payment_method": "VARCHAR(80)",
         "paid_at": "TIMESTAMP",
+        "cancelled_at": "TIMESTAMP",
+        "cancellation_reason": "VARCHAR(300)",
         "invoice_pdf_path": "VARCHAR(500)",
         "invoice_email_sent_to": "VARCHAR(255)",
         "invoice_email_sent_at": "TIMESTAMP",
@@ -197,3 +199,28 @@ def ensure_orders_invoice_columns(engine: Engine) -> None:
     with engine.begin() as connection:
         for stmt in statements:
             connection.execute(text(stmt))
+
+
+def ensure_cart_items_session_column(engine: Engine) -> None:
+    """Agrega la columna session_id a cart_items si no existe, y hace user_id nullable."""
+    inspector = inspect(engine)
+
+    if "cart_items" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("cart_items")}
+
+    if "session_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE cart_items ADD COLUMN session_id VARCHAR(128)")
+            )
+
+    # Make user_id nullable to support anonymous cart sessions
+    with engine.begin() as connection:
+        try:
+            connection.execute(
+                text("ALTER TABLE cart_items ALTER COLUMN user_id DROP NOT NULL")
+            )
+        except Exception:
+            pass

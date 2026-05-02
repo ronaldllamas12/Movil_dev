@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.core.database import Base
@@ -14,14 +14,21 @@ class CartItem(Base):
     __tablename__ = "cart_items"
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", name="uq_cart_items_user_product"),
+        UniqueConstraint("session_id", "product_id", name="uq_cart_items_session_product"),
+        Index("ix_cart_items_session_id", "session_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
+    )
+
+    session_id: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
     )
 
     product_id: Mapped[int] = mapped_column(

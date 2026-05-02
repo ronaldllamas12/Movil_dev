@@ -24,11 +24,13 @@ from cart.router import router as cart_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from orders.models import Order, OrderItem, OrderRefund, OrderStatusHistory
 from payments.router import router as payments_router
 from products.models import Product
 from products.router import router as products_router
 
-from database.core.database import (Base, ensure_orders_invoice_columns,
+from database.core.database import (Base, ensure_cart_items_session_column,
+                                    ensure_orders_invoice_columns,
                                     ensure_products_new_columns,
                                     ensure_user_role_column, get_engine)
 from database.core.errors import (AppError, ConflictError, ForbiddenError,
@@ -73,6 +75,7 @@ async def lifespan(_: FastAPI):
     ensure_user_role_column(engine)
     ensure_products_new_columns(engine)
     ensure_orders_invoice_columns(engine)
+    ensure_cart_items_session_column(engine)
     yield
 
 
