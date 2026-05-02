@@ -1,11 +1,15 @@
-import { Eye, EyeOff, Home, LogOut, Mail, MapPin, Phone, Shield, Upload, User } from 'lucide-react';
+import { Home, LogOut, Mail, MapPin, Phone, Shield, Upload, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { updatePassword, updateShippingProfile, uploadAvatar } from '../api/services/authService';
 import { useCarrito } from '../context/CarritoContext';
+import PasswordInput from './auth/PasswordInput';
+import Alert from './ui/Alert';
+import InputWithIcon from './ui/InputWithIcon';
 
-const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Usuario&background=E2E8F0&color=334155&size=256';
+const DEFAULT_AVATAR =
+  'https://ui-avatars.com/api/?name=Usuario&background=E2E8F0&color=334155&size=256';
 
 export default function Perfil() {
   const navigate = useNavigate();
@@ -17,11 +21,14 @@ export default function Perfil() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingShipping, setIsSavingShipping] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
   const [shippingForm, setShippingForm] = useState(() => {
     const shipping = currentUser?.preferences?.shipping || {};
     return {
@@ -31,6 +38,7 @@ export default function Perfil() {
       city: shipping.city || '',
     };
   });
+
   const avatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -62,15 +70,12 @@ export default function Perfil() {
 
   const handleAvatarUpload = async (event) => {
     const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     setErrorMsg('');
     setSuccessMsg('');
-
     setIsUploadingAvatar(true);
+
     try {
       await uploadAvatar(file);
       await refreshCurrentUser();
@@ -110,7 +115,6 @@ export default function Perfil() {
         newPassword,
         currentPassword: isGoogleOnlyAccount ? undefined : currentPassword,
       });
-
       await refreshCurrentUser();
       setCurrentPassword('');
       setNewPassword('');
@@ -118,7 +122,7 @@ export default function Perfil() {
       setSuccessMsg(
         isGoogleOnlyAccount
           ? 'Contraseña agregada correctamente. Ya puedes iniciar sesión con Google o con email y contraseña.'
-          : 'Contraseña actualizada correctamente.'
+          : 'Contraseña actualizada correctamente.',
       );
     } catch (error) {
       setErrorMsg(getApiErrorMessage(error));
@@ -153,6 +157,7 @@ export default function Perfil() {
     }
 
     setIsSavingShipping(true);
+
     try {
       await updateShippingProfile(shippingForm);
       await refreshCurrentUser();
@@ -174,8 +179,12 @@ export default function Perfil() {
               alt={currentUser?.full_name || 'Usuario'}
               className="size-28 rounded-full object-cover border-4 border-[color:var(--surface-muted)]"
             />
-            <h1 className="mt-4 text-2xl font-bold text-[color:var(--text)]">{currentUser?.full_name || 'Usuario'}</h1>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">{currentUser?.email || 'Sin correo disponible'}</p>
+            <h1 className="mt-4 text-2xl font-bold text-[color:var(--text)]">
+              {currentUser?.full_name || 'Usuario'}
+            </h1>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              {currentUser?.email || 'Sin correo disponible'}
+            </p>
 
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[color:var(--surface-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--muted)]">
               <Shield className="size-3.5" />
@@ -225,14 +234,18 @@ export default function Perfil() {
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-4">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Nombre completo</p>
+              <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">
+                Nombre completo
+              </p>
               <p className="mt-2 font-semibold text-[color:var(--text)] inline-flex items-center gap-2">
                 <User className="size-4" />
                 {currentUser?.full_name || 'Sin nombre'}
               </p>
             </div>
             <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] p-4">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Correo electrónico</p>
+              <p className="text-xs uppercase tracking-wide text-[color:var(--muted)]">
+                Correo electrónico
+              </p>
               <p className="mt-2 font-semibold text-[color:var(--text)] inline-flex items-center gap-2">
                 <Mail className="size-4" />
                 {currentUser?.email || 'Sin correo'}
@@ -250,62 +263,50 @@ export default function Perfil() {
           <form onSubmit={handleShippingSubmit} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="block text-sm font-medium text-[color:var(--text)]">
               Persona que recibe
-              <div className="mt-2 relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
-                <input
-                  name="receiverName"
-                  value={shippingForm.receiverName}
-                  onChange={handleShippingChange}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="Nombre completo"
-                  required
-                />
-              </div>
+              <InputWithIcon
+                icon={<User className="size-4" />}
+                name="receiverName"
+                value={shippingForm.receiverName}
+                onChange={handleShippingChange}
+                placeholder="Nombre completo"
+                required
+              />
             </label>
 
             <label className="block text-sm font-medium text-[color:var(--text)]">
               Teléfono
-              <div className="mt-2 relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
-                <input
-                  name="phone"
-                  value={shippingForm.phone}
-                  onChange={handleShippingChange}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="3101234567"
-                  required
-                />
-              </div>
+              <InputWithIcon
+                icon={<Phone className="size-4" />}
+                name="phone"
+                value={shippingForm.phone}
+                onChange={handleShippingChange}
+                placeholder="3101234567"
+                required
+              />
             </label>
 
             <label className="block text-sm font-medium text-[color:var(--text)] md:col-span-2">
               Dirección
-              <div className="mt-2 relative">
-                <Home className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
-                <input
-                  name="address"
-                  value={shippingForm.address}
-                  onChange={handleShippingChange}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="Calle, carrera, número, apartamento"
-                  required
-                />
-              </div>
+              <InputWithIcon
+                icon={<Home className="size-4" />}
+                name="address"
+                value={shippingForm.address}
+                onChange={handleShippingChange}
+                placeholder="Calle, carrera, número, apartamento"
+                required
+              />
             </label>
 
             <label className="block text-sm font-medium text-[color:var(--text)]">
               Ciudad
-              <div className="mt-2 relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[color:var(--muted)]" />
-                <input
-                  name="city"
-                  value={shippingForm.city}
-                  onChange={handleShippingChange}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 pl-11 pr-4 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="Ciudad"
-                  required
-                />
-              </div>
+              <InputWithIcon
+                icon={<MapPin className="size-4" />}
+                name="city"
+                value={shippingForm.city}
+                onChange={handleShippingChange}
+                placeholder="Ciudad"
+                required
+              />
             </label>
 
             <div className="flex items-end">
@@ -330,87 +331,40 @@ export default function Perfil() {
             </p>
           </div>
 
-          {errorMsg && (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{errorMsg}</p>
-          )}
-
-          {successMsg && (
-            <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</p>
-          )}
+          <Alert variant="error" message={errorMsg} className="mt-4" />
+          <Alert variant="success" message={successMsg} className="mt-4" />
 
           <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-4">
             {!isGoogleOnlyAccount && (
-              <label className="block text-sm font-medium text-[color:var(--text)]">
-                Contraseña actual
-                <div className="mt-2 relative">
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                    className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 px-4 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                    placeholder="********"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword((value) => !value)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
-                    aria-label={showCurrentPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
-                  >
-                    {showCurrentPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </label>
+              <PasswordInput
+                label="Contraseña actual"
+                value={currentPassword}
+                onChange={setCurrentPassword}
+                show={showCurrentPassword}
+                onToggleShow={() => setShowCurrentPassword((v) => !v)}
+              />
             )}
 
-            <label className="block text-sm font-medium text-[color:var(--text)]">
-              Nueva contraseña
-              <div className="mt-2 relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 px-4 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="********"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((value) => !value)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
-                  aria-label={showNewPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
-                >
-                  {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </label>
+            <PasswordInput
+              label="Nueva contraseña"
+              value={newPassword}
+              onChange={setNewPassword}
+              show={showNewPassword}
+              onToggleShow={() => setShowNewPassword((v) => !v)}
+            />
 
-            <label className="block text-sm font-medium text-[color:var(--text)]">
-              Confirmar nueva contraseña
-              <div className="mt-2 relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] py-3 px-4 pr-12 text-[color:var(--text)] outline-none transition focus:border-purple-600"
-                  placeholder="********"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((value) => !value)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)]"
-                  aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
-                >
-                  {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </label>
+            <PasswordInput
+              label="Confirmar nueva contraseña"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              show={showConfirmPassword}
+              onToggleShow={() => setShowConfirmPassword((v) => !v)}
+            />
 
             <button
               type="submit"
               disabled={isSavingPassword}
-              className="w-full sm:w-auto rounded-2xl bg-[#0f172a] py-3 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="w-full rounded-2xl bg-[#0f172a] py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-70"
             >
               {isSavingPassword
                 ? 'Guardando...'

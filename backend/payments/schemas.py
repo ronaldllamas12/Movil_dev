@@ -9,6 +9,7 @@ class CheckoutCustomerData(BaseModel):
     telefono: str
     direccion: str
     ciudad: str
+    frontend_origin: str | None = None
 
 
 class PayPalCreateOrderResponse(BaseModel):

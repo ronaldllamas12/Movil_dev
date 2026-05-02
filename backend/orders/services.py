@@ -38,6 +38,25 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _whatsapp_product_names(db: Session, order: Order) -> list[str]:
+    product_ids = [item.product_id for item in order.items if item.product_id]
+    if not product_ids:
+        return []
+
+    products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+    product_map = {product.id: product.nombre for product in products}
+
+    names: list[str] = []
+    for item in order.items:
+        product_name = product_map.get(item.product_id)
+        if not product_name:
+            continue
+        qty = int(getattr(item, "quantity", 1) or 1)
+        names.append(f"{product_name} x{qty}")
+
+    return names
+
+
 def _create_status_history(
     db: Session,
     *,
@@ -271,6 +290,8 @@ def update_order_status(
         status=order.status,
         total=float(order.total) if order.total is not None else None,
         address=order.delivery_address,
+        customer_name=order.customer_name,
+        product_names=_whatsapp_product_names(db, order),
     )
 
     return order
@@ -314,6 +335,8 @@ def mark_order_paid(
             status=order.status,
             total=float(order.total) if order.total is not None else None,
             address=order.delivery_address,
+            customer_name=order.customer_name,
+            product_names=_whatsapp_product_names(db, order),
         )
 
     return order

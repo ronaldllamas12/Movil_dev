@@ -23,6 +23,7 @@ import {
     sendOrderInvoice,
     updateOrderStatus,
 } from '../../api/services/ordersService';
+import { formatCurrency } from '../../utils/formatters';
 
 const ORDER_STATUS_META = {
   pending: { label: 'Pendiente', badge: 'bg-amber-100 text-amber-800 border border-amber-200' },
@@ -62,10 +63,6 @@ function getStatusLabel(status) {
 
 function getStatusBadgeClass(status) {
   return ORDER_STATUS_META[status]?.badge || 'bg-slate-100 text-slate-700 border border-slate-200';
-}
-
-function formatCurrency(value) {
-  return `$${Number(value || 0).toLocaleString('es-CO')}`;
 }
 
 function formatDateTime(value) {

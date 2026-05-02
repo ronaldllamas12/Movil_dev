@@ -43,10 +43,7 @@ def _parse_cors_origins() -> list[str]:
         origin.strip() for origin in raw_origins.split(",") if origin.strip()
     ]
 
-    if configured_origins:
-        return configured_origins
-
-    return [
+    default_origins = [
         "http://127.0.0.1:5500",
         "http://localhost:5500",
         "http://127.0.0.1:3000",
@@ -56,6 +53,13 @@ def _parse_cors_origins() -> list[str]:
         "https://movil-dev.vercel.app",
         "https://movil-dev.onrender.com"
     ]
+
+    # Mantiene compatibilidad local aunque CORS_ALLOW_ORIGINS esté configurada en deploy.
+    if configured_origins:
+        merged = list(dict.fromkeys(configured_origins + default_origins))
+        return merged
+
+    return default_origins
 
 
 def _parse_cors_origin_regex() -> str | None:

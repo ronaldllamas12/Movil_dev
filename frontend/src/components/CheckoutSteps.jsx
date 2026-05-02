@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../api/axiosClient";
 import { updateShippingProfile } from "../api/services/authService";
 import {
-  createEpaycoSession,
-  createPayPalOrder,
+    createEpaycoSession,
+    createPayPalOrder,
 } from "../api/services/paymentService";
 import { useCarrito } from "../context/CarritoContext";
 
@@ -97,6 +97,7 @@ export default function CheckoutSteps({ currentUser }) {
     telefono: user.telefono.trim(),
     direccion: entrega.direccion.trim(),
     ciudad: entrega.ciudad.trim(),
+    frontend_origin: window.location.origin,
   });
 
   const loadEpaycoScript = () =>

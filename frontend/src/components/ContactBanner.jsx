@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
 import { MessageCircle, ShoppingBag } from 'lucide-react'; // Añadimos iconos para que se vea más pro
+import { Link } from 'react-router-dom';
 
 export default function ContactBanner() {
   // Configuración de WhatsApp
-  const telefono = "541112345678"; // Tu número sin el +
+  const telefono = "573022265668"; // Tu número sin el +
   const mensaje = encodeURIComponent("Hola Móvil Dev! Necesito asesoramiento para elegir un celular.");
   const whatsappUrl = `https://wa.me/${telefono}?text=${mensaje}`;
 

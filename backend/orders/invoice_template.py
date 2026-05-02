@@ -2,8 +2,6 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from backend.cloudinary_utils import upload_image_to_cloudinary
-from fastapi import BackgroundTasks
 import smtplib
 from email.message import EmailMessage
 # Genera el PDF de la factura y retorna la ruta al archivo generado
@@ -27,15 +25,35 @@ def generate_invoice_pdf(db, order):
     render_invoice_pdf(pdf_path=pdf_path, invoice=invoice, qr_buffer=qr_buffer)
     return pdf_path
 
-# Envía la factura por correo electrónico usando SMTP (Mailtrap o cualquier proveedor)
+# Envía la factura por correo electrónico usando SMTP (Gmail por defecto)
 def send_invoice_email(recipient_email, invoice_pdf_path, order):
     try:
-        smtp_host = os.getenv("SMTP_HOST", "live.smtp.mailtrap.io")
-        smtp_port = int(os.getenv("SMTP_PORT", 587))
-        smtp_user = os.getenv("SMTP_USER", "").strip()
-        smtp_pass = os.getenv("SMTP_PASSWORD", "").strip()
-        mail_from = os.getenv("MAIL_FROM", smtp_user or "no-reply@movildev.com").strip()
+        smtp_provider = os.getenv("SMTP_PROVIDER", "gmail").strip().lower()
+        default_host = "smtp.gmail.com" if smtp_provider == "gmail" else "localhost"
+        default_port = 587
+
+        smtp_host = os.getenv("SMTP_HOST_GMAIL", default_host).strip()
+        smtp_port = int(os.getenv("SMTP_PORT", default_port))
+        smtp_user = os.getenv("SMTP_USER_GMAIL", "").strip()
+        smtp_pass = (
+            os.getenv("SMTP_PASSWORD_GMAIL", "").strip()
+            or os.getenv("GMAIL_APP_PASSWORD", "").strip()
+        )
+        mail_from = os.getenv("MAIL_FROM_GMAIL", smtp_user or "no-reply@movildev.com").strip()
         mail_from_name = os.getenv("MAIL_FROM_NAME", "Movil Dev").strip()
+
+        if not smtp_user or not smtp_pass:
+            print(
+                "[EMAIL ERROR] Faltan credenciales SMTP_USER/SMTP_PASSWORD "
+                "(o GMAIL_APP_PASSWORD para Gmail)."
+            )
+            return False
+
+        if "gmail.com" in smtp_host and mail_from.lower() != smtp_user.lower():
+            print(
+                "[EMAIL WARN] Con Gmail, MAIL_FROM deberia coincidir con SMTP_USER "
+                "para evitar bloqueos por politica del proveedor."
+            )
 
         msg = EmailMessage()
         msg["Subject"] = f"Factura de tu pedido #{order.id} - Movil Dev"
@@ -59,8 +77,7 @@ def send_invoice_email(recipient_email, invoice_pdf_path, order):
             server.ehlo()
             server.starttls()
             server.ehlo()
-            if smtp_user and smtp_pass:
-                server.login(smtp_user, smtp_pass)
+            server.login(smtp_user, smtp_pass)
             server.send_message(msg)
         return True
     except Exception as e:

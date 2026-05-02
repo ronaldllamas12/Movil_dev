@@ -1,14 +1,20 @@
-import { Loader2, MessageCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, MessageCircle, Power, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getWhatsAppQR, getWhatsAppStatus } from '../../api/services/whatsappService';
+import {
+    connectWhatsApp,
+    disconnectWhatsApp,
+    getWhatsAppQR,
+    getWhatsAppStatus,
+} from '../../api/services/whatsappService';
 
 const POLL_INTERVAL_MS = 5000; // refresca estado cada 5 s
 
 export default function WhatsAppPanel() {
-  const [status, setStatus] = useState(null); // { ready, hasQR }
+  const [status, setStatus] = useState(null); // { ready, hasQR, connecting }
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingQR, setLoadingQR] = useState(false);
+  const [loadingControl, setLoadingControl] = useState(false);
   const [error, setError] = useState(null);
   const pollerRef = useRef(null);
 
@@ -41,6 +47,36 @@ export default function WhatsAppPanel() {
       setLoadingQR(false);
     }
   }, []);
+
+  const handleConnect = useCallback(async () => {
+    setLoadingControl(true);
+    setError(null);
+    try {
+      const result = await connectWhatsApp();
+      setStatus(prev => ({ ...prev, connecting: true }));
+      // Espera un poco y luego actualiza el estado
+      setTimeout(() => fetchStatus(), 2000);
+    } catch (err) {
+      setError('Error al conectar WhatsApp.');
+    } finally {
+      setLoadingControl(false);
+    }
+  }, [fetchStatus]);
+
+  const handleDisconnect = useCallback(async () => {
+    setLoadingControl(true);
+    setError(null);
+    try {
+      await disconnectWhatsApp();
+      setStatus(prev => ({ ...prev, ready: false, hasQR: false }));
+      setQrDataUrl(null);
+      fetchStatus();
+    } catch (err) {
+      setError('Error al desconectar WhatsApp.');
+    } finally {
+      setLoadingControl(false);
+    }
+  }, [fetchStatus]);
 
   // Polling automático del estado
   useEffect(() => {
@@ -94,33 +130,68 @@ export default function WhatsAppPanel() {
           Consultando estado...
         </div>
       ) : (
-        <div
-          className={`flex items-center gap-3 rounded-2xl border px-5 py-4 ${
-            status?.ready
-              ? 'border-green-200 bg-green-50'
-              : 'border-amber-200 bg-amber-50'
-          }`}
-        >
-          {status?.ready ? (
-            <Wifi className="size-5 text-green-600" />
-          ) : (
-            <WifiOff className="size-5 text-amber-500" />
-          )}
-          <div>
-            <p
-              className={`font-semibold ${
-                status?.ready ? 'text-green-700' : 'text-amber-700'
-              }`}
+        <div className="space-y-4">
+          <div
+            className={`flex items-center gap-3 rounded-2xl border px-5 py-4 ${
+              status?.ready
+                ? 'border-green-200 bg-green-50'
+                : 'border-amber-200 bg-amber-50'
+            }`}
+          >
+            {status?.ready ? (
+              <Wifi className="size-5 text-green-600" />
+            ) : (
+              <WifiOff className="size-5 text-amber-500" />
+            )}
+            <div className="flex-1">
+              <p
+                className={`font-semibold ${
+                  status?.ready ? 'text-green-700' : 'text-amber-700'
+                }`}
+              >
+                {status?.ready ? 'Conectado y activo' : status?.connecting ? 'Conectando...' : 'Sin conexión'}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {status?.ready
+                  ? 'Las notificaciones de pedidos se enviarán automáticamente.'
+                  : status?.connecting
+                  ? 'Iniciando conexión, escanea el QR cuando aparezca.'
+                  : status?.hasQR
+                  ? 'Escanea el QR desde WhatsApp en tu teléfono para vincular.'
+                  : 'El microservicio no está disponible o aún está iniciando.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Botones de control */}
+          <div className="flex gap-3">
+            {status?.ready ? (
+              <button
+                onClick={handleDisconnect}
+                disabled={loadingControl}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 transition disabled:opacity-60"
+              >
+                <Power className="size-4" />
+                {loadingControl ? 'Desconectando...' : 'Desconectar'}
+              </button>
+            ) : (
+              <button
+                onClick={handleConnect}
+                disabled={loadingControl || status?.connecting}
+                className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 transition disabled:opacity-60"
+              >
+                <Wifi className="size-4" />
+                {loadingControl || status?.connecting ? 'Conectando...' : 'Conectar'}
+              </button>
+            )}
+            <button
+              onClick={() => { setLoadingStatus(true); fetchStatus(); }}
+              disabled={loadingStatus || loadingControl}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-60"
             >
-              {status?.ready ? 'Conectado y activo' : 'Sin conexión'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {status?.ready
-                ? 'Las notificaciones de pedidos se enviarán automáticamente.'
-                : status?.hasQR
-                ? 'Escanea el QR desde WhatsApp en tu teléfono para vincular.'
-                : 'El microservicio no está disponible o aún está iniciando.'}
-            </p>
+              <RefreshCw className={`size-4 ${loadingStatus ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
           </div>
         </div>
       )}

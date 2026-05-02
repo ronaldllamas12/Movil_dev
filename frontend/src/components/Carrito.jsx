@@ -1,7 +1,10 @@
-import { ArrowLeft, BadgeCheck, Loader2, Minus, Plus, ShieldCheck, ShoppingBag, Sparkles, Trash2, Truck } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Minus, Plus, ShieldCheck, ShoppingBag, Sparkles, Trash2, Truck } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCarrito } from '../context/CarritoContext';
+import { formatCurrency } from '../utils/formatters';
+import Alert from './ui/Alert';
+import LoadingSpinner from './ui/LoadingSpinner';
 
 export default function Carrito() {
   const navigate = useNavigate();
@@ -21,13 +24,6 @@ export default function Carrito() {
     isAuthLoading,
   } = useCarrito();
 
-  const formatCurrency = (value) =>
-    Number(value || 0).toLocaleString('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      maximumFractionDigits: 0,
-    });
-
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
       navigate('/login', { replace: true });
@@ -39,9 +35,8 @@ export default function Carrito() {
   if (isCartLoading) {
     return (
       <section className="min-h-[calc(100vh-80px)] bg-[color:var(--bg)] px-6 py-20">
-        <div className="mx-auto flex max-w-3xl items-center justify-center rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-10 text-[color:var(--text)] shadow-xl">
-          <Loader2 className="mr-3 size-6 animate-spin text-purple-600" />
-          <h2 className="text-xl font-semibold">Cargando carrito...</h2>
+        <div className="mx-auto flex max-w-3xl items-center justify-center rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-10 shadow-xl">
+          <LoadingSpinner message="Cargando carrito..." />
         </div>
       </section>
     );
@@ -123,11 +118,7 @@ export default function Carrito() {
           </div>
         </div>
 
-        {cartError ? (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {cartError}
-          </div>
-        ) : null}
+        <Alert variant="error" message={cartError} className="mb-6" />
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_24rem]">
           <div className="space-y-4">

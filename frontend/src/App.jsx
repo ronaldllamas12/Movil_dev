@@ -73,6 +73,11 @@ function App() {
     const loadProducts = async () => {
       try {
         const apiProducts = await getProducts();
+        if (!Array.isArray(apiProducts)) {
+          console.warn('Respuesta de /products no es un arreglo. Se omite el mapeo.', apiProducts);
+          return;
+        }
+
         const mappedProducts = apiProducts.map(toProductCardModel).filter(Boolean);
 
         if (isMounted && mappedProducts.length > 0) {

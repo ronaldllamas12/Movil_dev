@@ -1,8 +1,8 @@
 import {
-    DisconnectReason,
-    fetchLatestBaileysVersion,
-    makeWASocket,
-    useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  makeWASocket,
+  useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 import express from "express";
 import fs from "fs";
@@ -27,32 +27,39 @@ const MAX_RETRIES = 5;
 const STATUS_MESSAGES = {
   paid: (order) =>
     [
-      `✅ *¡Pago confirmado!*`,
+      `✅ *¡Tu pago ha sido confirmado!*`,
       ``,
-      `Hola! Tu pedido *#${order.order_id}* ha sido pagado exitosamente.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido pagado exitosamente.`,
       `💰 Total: $${formatMoney(order.total)}`,
+      formatProducts(order.product_names),
       ``,
       `Pronto comenzaremos a prepararlo. 🛍️`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   processing: (order) =>
     [
       `⚙️ *Pedido en preparación*`,
       ``,
-      `Tu pedido *#${order.order_id}* está siendo preparado con cuidado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* está siendo preparado con cuidado.`,
+      formatProducts(order.product_names),
       ``,
       `Te avisaremos cuando sea enviado. 📦`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   shipped: (order) =>
     [
       `🚚 *¡Tu pedido fue enviado!*`,
       ``,
-      `Tu pedido *#${order.order_id}* está en camino.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* está en camino.`,
+      formatProducts(order.product_names),
       order.address ? `📍 Dirección: ${order.address}` : null,
       ``,
       `¡Pronto lo recibirás! 🎁`,
@@ -66,33 +73,42 @@ const STATUS_MESSAGES = {
     [
       `🎉 *¡Pedido entregado!*`,
       ``,
-      `Tu pedido *#${order.order_id}* ha sido entregado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido entregado.`,
+      formatProducts(order.product_names),
       ``,
       `Gracias por comprar con nosotros. ¡Esperamos verte pronto! 🙌`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   cancelled: (order) =>
     [
       `❌ *Pedido cancelado*`,
       ``,
-      `Tu pedido *#${order.order_id}* ha sido cancelado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido cancelado.`,
+      formatProducts(order.product_names),
       ``,
       `Si tienes dudas contáctanos por este chat. 😊`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   refunded: (order) =>
     [
       `↩️ *Reembolso procesado*`,
       ``,
-      `Se ha procesado un reembolso para tu pedido *#${order.order_id}*.`,
+      `Hola ${order.customer_name || "cliente"}, se ha procesado un reembolso para tu pedido *#${order.order_id}*.`,
+      formatProducts(order.product_names),
       `El monto será acreditado en tu método de pago original.`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 };
 
 // ── Utilidades ──
@@ -102,6 +118,14 @@ function formatMoney(value) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatProducts(productNames) {
+  if (!Array.isArray(productNames) || productNames.length === 0) {
+    return null;
+  }
+
+  return ["🧾 Productos:", ...productNames.map((name) => `• ${name}`)].join("\n");
 }
 
 /** Normaliza teléfono colombiano a JID: 573001234567@s.whatsapp.net */
@@ -132,7 +156,25 @@ function clearAuthDir() {
 }
 
 export function getWhatsAppStatus() {
-  return { ready: waReady, qr: waQR };
+  return { ready: waReady, qr: waQR, connecting };
+}
+
+async function disconnectWhatsApp() {
+  if (sock) {
+    try {
+      await sock.logout();
+      sock = null;
+      waReady = false;
+      waQR = null;
+      connecting = false;
+      clearAuthDir();
+      console.log("[WhatsApp] Desconectado por admin.");
+    } catch (err) {
+      console.error("[WhatsApp] Error al desconectar:", err);
+      sock = null;
+      waReady = false;
+    }
+  }
 }
 
 async function initWhatsApp() {
@@ -260,10 +302,10 @@ app.get("/api/whatsapp/qr", async (_req, res) => {
 
 /**
  * POST /api/whatsapp/send-order-status
- * Body: { phone, order_id, status, total?, address? }
+ * Body: { phone, order_id, status, total?, address?, customer_name?, product_names? }
  */
 app.post("/api/whatsapp/send-order-status", async (req, res) => {
-  const { phone, order_id, status, total, address } = req.body;
+  const { phone, order_id, status, total, address, customer_name, product_names } = req.body;
 
   if (!phone || !order_id || !status) {
     return res.status(400).json({ error: "Faltan campos: phone, order_id, status" });
@@ -276,14 +318,35 @@ app.post("/api/whatsapp/send-order-status", async (req, res) => {
       .json({ error: `Estado '${status}' no tiene mensaje definido.` });
   }
 
-  const body = template({ order_id, total, address });
+  const body = template({ order_id, total, address, customer_name, product_names });
   const sent = await sendMessage(phone, body);
 
   res.json({ sent, status, order_id });
 });
 
+/** POST /api/whatsapp/connect — inicia conexión */
+app.post("/api/whatsapp/connect", async (_req, res) => {
+  if (connecting || waReady) {
+    return res.json({ status: "already_connecting_or_connected", ready: waReady });
+  }
+  initWhatsApp();
+  res.json({ status: "connecting", ready: waReady });
+});
+
+/** POST /api/whatsapp/disconnect — termina conexión */
+app.post("/api/whatsapp/disconnect", async (req, res) => {
+  await disconnectWhatsApp();
+  res.json({ status: "disconnected", ready: waReady });
+});
+
 // ── Arranque ──
+const shouldAutoInit = process.env.WA_AUTO_INIT !== "false";
 app.listen(PORT, () => {
   console.log(`[WhatsApp Service] Escuchando en http://localhost:${PORT}`);
-  initWhatsApp();
+  if (shouldAutoInit) {
+    console.log("[WhatsApp] Auto-iniciando conexión...");
+    initWhatsApp();
+  } else {
+    console.log("[WhatsApp] Auto-init deshabilitado. Usa POST /api/whatsapp/connect para conectar.");
+  }
 });
