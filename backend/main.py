@@ -61,8 +61,6 @@ def _parse_cors_origins() -> list[str]:
        return list(dict.fromkeys(configured_origins + default_origins))
     return default_origins
 
-    return default_origins
-
 
 def _parse_cors_origin_regex() -> str | None:
     configured_regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip()
