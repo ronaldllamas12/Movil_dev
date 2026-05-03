@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function ContactBanner() {
   // Configuración de WhatsApp
-  const telefono = "573022265668"; // Tu número sin el +
+  const telefono = "3187387340"; // Tu número sin el +
   const mensaje = encodeURIComponent("Hola Móvil Dev! Necesito asesoramiento para elegir un celular.");
   const whatsappUrl = `https://wa.me/${telefono}?text=${mensaje}`;
 

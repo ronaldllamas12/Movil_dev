@@ -322,9 +322,10 @@ export default function OrdersPanel() {
                             {getStatusLabel(order.status)}
                           </span>
                         </td>
-                        <td className="px-4 py-3">{formatCurrency(order.subtotal)}</td>
-                        <td className="px-4 py-3">{formatCurrency(order.tax)}</td>
-                        <td className="px-4 py-3 font-semibold">{formatCurrency(order.total)}</td>
+                        {/* ajustando color de texto subtotal, impuestos y total , para que en modo oscuro se vea el texto. */}
+                        <td className="px-4 py-3 text-slate-700">{formatCurrency(order.subtotal)}</td>
+                        <td className="px-4 py-3 text-slate-700">{formatCurrency(order.tax)}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-700">{formatCurrency(order.total)}</td>
                         <td className="px-4 py-3">
                           <div className="space-y-2">
                             <div className="flex flex-wrap gap-2">
