@@ -4,7 +4,7 @@ from typing import List
 from auth.dependencies import get_current_admin, get_current_user
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import FileResponse
-from orders.models import Order, OrderStatus
+from orders.models import Order, OrderRefund, OrderStatus
 from orders.schemas import (
     CancelOrderRequest,
     OrderSchema,
@@ -238,13 +238,15 @@ def get_sales_report(
     total_tax = float(paid_aggregates.total_tax or 0)
     paid_count = paid_aggregates.paid_count or 0
     
-    # Cálculo de total reembolsado
-    total_refunded = 0.0
-    refund_query = db.query(
-        func.sum(Order.refunded_total).label("total_refunded")
-    ).filter(Order.status.in_(paid_statuses)).first()
-    if refund_query.total_refunded:
-        total_refunded = float(refund_query.total_refunded)
+    # Cálculo de total reembolsado usando JOIN con OrderRefund (no propiedad Python)
+    total_refunded_query = db.query(
+        func.sum(OrderRefund.amount).label("total_refunded")
+    ).filter(
+        OrderRefund.order_id.in_(
+            db.query(Order.id).filter(Order.status.in_(paid_statuses))
+        )
+    ).first()
+    total_refunded = float(total_refunded_query.total_refunded or 0)
     
     # Desglose por estado usando agregados SQL
     status_breakdown = {}
