@@ -58,8 +58,8 @@ def _parse_cors_origins() -> list[str]:
 
     # Mantiene compatibilidad local aunque CORS_ALLOW_ORIGINS esté configurada en deploy.
     if configured_origins:
-        merged = list(dict.fromkeys(configured_origins + default_origins))
-        return merged
+       return list(dict.fromkeys(configured_origins + default_origins))
+     return default_origins
 
     return default_origins
 
