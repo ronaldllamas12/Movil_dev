@@ -20,6 +20,7 @@ const RESET_SESSION_ON_LOGOUT = process.env.WA_RESET_SESSION_ON_LOGOUT === "true
 const WATCHDOG_INTERVAL_MS = Number(process.env.WA_WATCHDOG_INTERVAL_MS || 15000);
 const CONNECT_TIMEOUT_MS = Number(process.env.WA_CONNECT_TIMEOUT_MS || 60000);
 const KEEP_ALIVE_INTERVAL_MS = Number(process.env.WA_KEEPALIVE_INTERVAL_MS || 20000);
+const RETRY_COOLDOWN_MS = Number(process.env.WA_RETRY_COOLDOWN_MS || 60000);
 
 // ── Estado interno ──
 let sock = null;
@@ -164,21 +165,43 @@ function clearAuthDir() {
   }
 }
 
+function ensureAuthDir() {
+  try {
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    return true;
+  } catch (error) {
+    console.error("[WhatsApp] No se pudo crear AUTH_DIR:", AUTH_DIR, error);
+    return false;
+  }
+}
+
 function getAuthDirDiagnostics() {
   try {
     const exists = fs.existsSync(AUTH_DIR);
     const files = exists ? fs.readdirSync(AUTH_DIR) : [];
+    const writable = exists
+      ? (() => {
+          try {
+            fs.accessSync(AUTH_DIR, fs.constants.W_OK);
+            return true;
+          } catch {
+            return false;
+          }
+        })()
+      : false;
 
     return {
       authDir: AUTH_DIR,
       authDirExists: exists,
       authFileCount: files.length,
+      authDirWritable: writable,
     };
   } catch (error) {
     return {
       authDir: AUTH_DIR,
       authDirExists: false,
       authFileCount: 0,
+      authDirWritable: false,
       authDirError: error instanceof Error ? error.message : String(error),
     };
   }
@@ -221,8 +244,10 @@ function scheduleReconnect(reason = "unknown") {
 
   if (retryCount >= MAX_RETRIES) {
     console.error(
-      `[WhatsApp] Maximo de reintentos alcanzado (${MAX_RETRIES}). Ultima causa: ${reason}`
+      `[WhatsApp] Maximo de reintentos alcanzado (${MAX_RETRIES}). Enfriando ${RETRY_COOLDOWN_MS}ms. Ultima causa: ${reason}`
     );
+    retryCount = 0;
+    setTimeout(() => initWhatsApp(), RETRY_COOLDOWN_MS);
     return;
   }
 
@@ -274,6 +299,13 @@ async function initWhatsApp() {
   intentionalDisconnect = false;
   connecting = true;
   markConnectionEvent();
+
+  if (!ensureAuthDir()) {
+    connecting = false;
+    scheduleReconnect("auth-dir-unavailable");
+    return;
+  }
+
   try {
     const { version } = await fetchLatestBaileysVersion();
     console.log("[WhatsApp] Usando WA Web version:", version);
@@ -471,6 +503,7 @@ app.post("/api/whatsapp/disconnect", async (req, res) => {
 const shouldAutoInit = process.env.WA_AUTO_INIT !== "false";
 app.listen(PORT, () => {
   console.log(`[WhatsApp Service] Escuchando en http://localhost:${PORT}`);
+  ensureAuthDir();
   startWatchdog();
   if (shouldAutoInit) {
     console.log("[WhatsApp] Auto-iniciando conexión...");
