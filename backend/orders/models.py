@@ -50,6 +50,8 @@ class Order(Base):
     customer_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     delivery_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     delivery_city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    shipping_company: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    tracking_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
     payment_provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(80), nullable=True)
     paid_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)

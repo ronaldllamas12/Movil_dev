@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useCarrito } from "../context/CarritoContext";
+import { formatCurrency } from "../utils/formatters";
 
 export default function Checkout() {
   const { total } = useCarrito();
@@ -77,7 +78,7 @@ export default function Checkout() {
     <div className="min-h-screen flex items-center justify-center bg-[#0B0B0F] p-4">
       <div className="w-full max-w-md bg-white/5 backdrop-blur border border-white/10 rounded-2xl shadow-xl p-8 flex flex-col items-center transition-all">
         <h2 className="text-2xl font-bold text-white mb-4">Checkout</h2>
-        <p className="text-lg text-white mb-6">Total a pagar: <span className="font-semibold">${total.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</span></p>
+        <p className="text-lg text-white mb-6">Total a pagar: <span className="font-semibold">{formatCurrency(total)}</span></p>
         <div className="flex flex-col gap-4 w-full">
           <button
             className="w-full py-3 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-lg font-bold text-[#0B0B0F] shadow-xl transition-all disabled:opacity-60"

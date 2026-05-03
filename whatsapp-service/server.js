@@ -12,8 +12,16 @@ import QRCode from "qrcode";
 
 // ── Config ──
 const PORT = process.env.WA_SERVICE_PORT || 3001;
-const AUTH_DIR = path.resolve(".baileys_auth");
+const AUTH_DIR = path.resolve(process.env.WA_AUTH_DIR || ".baileys_auth");
+const FALLBACK_AUTH_DIR = path.resolve(process.env.WA_AUTH_FALLBACK_DIR || ".baileys_auth_ephemeral");
 const logger = pino({ level: "silent" });
+const RECONNECT_DELAY_MS = Number(process.env.WA_RECONNECT_DELAY_MS || 3000);
+const MAX_RETRIES = Number(process.env.WA_MAX_RETRIES || 20);
+const RESET_SESSION_ON_LOGOUT = process.env.WA_RESET_SESSION_ON_LOGOUT === "true";
+const WATCHDOG_INTERVAL_MS = Number(process.env.WA_WATCHDOG_INTERVAL_MS || 15000);
+const CONNECT_TIMEOUT_MS = Number(process.env.WA_CONNECT_TIMEOUT_MS || 60000);
+const KEEP_ALIVE_INTERVAL_MS = Number(process.env.WA_KEEPALIVE_INTERVAL_MS || 20000);
+const RETRY_COOLDOWN_MS = Number(process.env.WA_RETRY_COOLDOWN_MS || 60000);
 
 // ── Estado interno ──
 let sock = null;
@@ -21,44 +29,122 @@ let waReady = false;
 let waQR = null;
 let connecting = false;
 let retryCount = 0;
-const MAX_RETRIES = 5;
+let intentionalDisconnect = false;
+let watchdogTimer = null;
+let lastConnectionEventAt = 0;
+let lastDisconnectReason = null;
+let activeAuthDir = AUTH_DIR;
+let usingFallbackAuthDir = false;
+
+function normalizeCarrierName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function cleanTrackingNumber(value) {
+  return String(value || "").replace(/\s+/g, "").trim();
+}
+
+function buildTrackingLink(shippingCompany, trackingNumber) {
+  const company = normalizeCarrierName(shippingCompany);
+  const guide = cleanTrackingNumber(trackingNumber);
+
+  if (!company || !guide) {
+    return null;
+  }
+
+  if (company.includes("servientrega")) {
+    return `https://www.servientrega.com/wps/portal/rastreo-envios?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("coordinadora")) {
+    return `https://www.coordinadora.com/rastreo/rastreo-de-guia/?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("interrapidisimo") || company.includes("inter rapidisimo")) {
+    return `https://www.interrapidisimo.co/seguimiento-de-envios/?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("deprisa")) {
+    return `https://www.deprisa.com/Tracking/?guideNumber=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("envia") || company.includes("envia colvan")) {
+    return `https://www.envia.co/seguimiento?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("tcc")) {
+    return `https://www.tcc.com.co/rastreo?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("dhl")) {
+    return `https://www.dhl.com/co-es/home/tracking/tracking-express.html?submit=1&tracking-id=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("fedex")) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("ups")) {
+    return `https://www.ups.com/track?tracknum=${encodeURIComponent(guide)}`;
+  }
+
+  return null;
+}
 
 // ── Mensajes por estado de pedido ──
 const STATUS_MESSAGES = {
   paid: (order) =>
     [
-      `✅ *¡Pago confirmado!*`,
+      `✅ *¡Tu pago ha sido confirmado!*`,
       ``,
-      `Hola! Tu pedido *#${order.order_id}* ha sido pagado exitosamente.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido pagado exitosamente.`,
       `💰 Total: $${formatMoney(order.total)}`,
+      formatProducts(order.product_names),
       ``,
       `Pronto comenzaremos a prepararlo. 🛍️`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   processing: (order) =>
     [
       `⚙️ *Pedido en preparación*`,
       ``,
-      `Tu pedido *#${order.order_id}* está siendo preparado con cuidado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* está siendo preparado con cuidado.`,
+      formatProducts(order.product_names),
       ``,
       `Te avisaremos cuando sea enviado. 📦`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   shipped: (order) =>
-    [
+    (() => {
+      const trackingLink = buildTrackingLink(order.shipping_company, order.tracking_number);
+
+      return [
       `🚚 *¡Tu pedido fue enviado!*`,
       ``,
-      `Tu pedido *#${order.order_id}* está en camino.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* está en camino.`,
+      formatProducts(order.product_names),
+      order.shipping_company ? `📦 Transportadora: ${order.shipping_company}` : null,
+      order.tracking_number ? `🔎 Número de guía: *${order.tracking_number}*` : null,
+      trackingLink ? `🔗 Rastrea tu envío: ${trackingLink}` : null,
       order.address ? `📍 Dirección: ${order.address}` : null,
       ``,
       `¡Pronto lo recibirás! 🎁`,
       ``,
       `_Movil Dev_`,
-    ]
+      ];
+    })()
       .filter((l) => l !== null)
       .join("\n"),
 
@@ -66,33 +152,42 @@ const STATUS_MESSAGES = {
     [
       `🎉 *¡Pedido entregado!*`,
       ``,
-      `Tu pedido *#${order.order_id}* ha sido entregado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido entregado.`,
+      formatProducts(order.product_names),
       ``,
       `Gracias por comprar con nosotros. ¡Esperamos verte pronto! 🙌`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   cancelled: (order) =>
     [
       `❌ *Pedido cancelado*`,
       ``,
-      `Tu pedido *#${order.order_id}* ha sido cancelado.`,
+      `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* ha sido cancelado.`,
+      formatProducts(order.product_names),
       ``,
       `Si tienes dudas contáctanos por este chat. 😊`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 
   refunded: (order) =>
     [
       `↩️ *Reembolso procesado*`,
       ``,
-      `Se ha procesado un reembolso para tu pedido *#${order.order_id}*.`,
+      `Hola ${order.customer_name || "cliente"}, se ha procesado un reembolso para tu pedido *#${order.order_id}*.`,
+      formatProducts(order.product_names),
       `El monto será acreditado en tu método de pago original.`,
       ``,
       `_Movil Dev_`,
-    ].join("\n"),
+    ]
+      .filter((l) => l !== null)
+      .join("\n"),
 };
 
 // ── Utilidades ──
@@ -102,6 +197,14 @@ function formatMoney(value) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatProducts(productNames) {
+  if (!Array.isArray(productNames) || productNames.length === 0) {
+    return null;
+  }
+
+  return ["🧾 Productos:", ...productNames.map((name) => `• ${name}`)].join("\n");
 }
 
 /** Normaliza teléfono colombiano a JID: 573001234567@s.whatsapp.net */
@@ -122,8 +225,8 @@ function toJid(phone) {
 // ── Gestión de sesión ──
 function clearAuthDir() {
   try {
-    if (fs.existsSync(AUTH_DIR)) {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    if (fs.existsSync(activeAuthDir)) {
+      fs.rmSync(activeAuthDir, { recursive: true, force: true });
       console.log("[WhatsApp] Datos de sesion eliminados.");
     }
   } catch {
@@ -131,28 +234,192 @@ function clearAuthDir() {
   }
 }
 
+function ensureDir(dirPath) {
+  try {
+    fs.mkdirSync(dirPath, { recursive: true });
+    return true;
+  } catch (error) {
+    console.error("[WhatsApp] No se pudo crear directorio de sesion:", dirPath, error);
+    return false;
+  }
+}
+
+function ensureActiveAuthDir() {
+  if (ensureDir(AUTH_DIR)) {
+    activeAuthDir = AUTH_DIR;
+    usingFallbackAuthDir = false;
+    return true;
+  }
+
+  if (ensureDir(FALLBACK_AUTH_DIR)) {
+    activeAuthDir = FALLBACK_AUTH_DIR;
+    usingFallbackAuthDir = true;
+    console.warn(
+      `[WhatsApp] Usando AUTH_DIR fallback '${FALLBACK_AUTH_DIR}'. La sesion sera temporal hasta corregir el disco persistente.`
+    );
+    return true;
+  }
+
+  return false;
+}
+
+function getAuthDirDiagnostics() {
+  try {
+    const exists = fs.existsSync(activeAuthDir);
+    const files = exists ? fs.readdirSync(activeAuthDir) : [];
+    const writable = exists
+      ? (() => {
+          try {
+            fs.accessSync(activeAuthDir, fs.constants.W_OK);
+            return true;
+          } catch {
+            return false;
+          }
+        })()
+      : false;
+
+    return {
+      configuredAuthDir: AUTH_DIR,
+      authDir: activeAuthDir,
+      authFallbackDir: FALLBACK_AUTH_DIR,
+      usingFallbackAuthDir,
+      authDirExists: exists,
+      authFileCount: files.length,
+      authDirWritable: writable,
+    };
+  } catch (error) {
+    return {
+      configuredAuthDir: AUTH_DIR,
+      authDir: activeAuthDir,
+      authFallbackDir: FALLBACK_AUTH_DIR,
+      usingFallbackAuthDir,
+      authDirExists: false,
+      authFileCount: 0,
+      authDirWritable: false,
+      authDirError: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export function getWhatsAppStatus() {
-  return { ready: waReady, qr: waQR };
+  return { ready: waReady, qr: waQR, connecting, lastConnectionEventAt };
+}
+
+function markConnectionEvent() {
+  lastConnectionEventAt = Date.now();
+}
+
+async function disconnectWhatsApp() {
+  intentionalDisconnect = true;
+  if (sock) {
+    try {
+      await sock.logout();
+      sock = null;
+      waReady = false;
+      waQR = null;
+      connecting = false;
+      clearAuthDir();
+      console.log("[WhatsApp] Desconectado por admin.");
+    } catch (err) {
+      console.error("[WhatsApp] Error al desconectar:", err);
+      sock = null;
+      waReady = false;
+    } finally {
+      connecting = false;
+    }
+  }
+}
+
+function scheduleReconnect(reason = "unknown") {
+  if (intentionalDisconnect) {
+    console.log("[WhatsApp] Reconexion omitida por desconexion intencional.");
+    return;
+  }
+
+  if (retryCount >= MAX_RETRIES) {
+    console.error(
+      `[WhatsApp] Maximo de reintentos alcanzado (${MAX_RETRIES}). Enfriando ${RETRY_COOLDOWN_MS}ms. Ultima causa: ${reason}`
+    );
+    retryCount = 0;
+    setTimeout(() => initWhatsApp(), RETRY_COOLDOWN_MS);
+    return;
+  }
+
+  retryCount += 1;
+  console.log(
+    `[WhatsApp] Reintentando conexion (${retryCount}/${MAX_RETRIES}). Causa: ${reason}`
+  );
+  setTimeout(() => initWhatsApp(), RECONNECT_DELAY_MS);
+}
+
+function startWatchdog() {
+  if (watchdogTimer) return;
+
+  watchdogTimer = setInterval(() => {
+    if (intentionalDisconnect) return;
+
+    const wsState = sock?.ws?.readyState;
+    const looksDead = sock && wsState !== undefined && wsState !== 1;
+
+    if (looksDead) {
+      console.log(`[WhatsApp] Watchdog detecto socket no abierto (state=${wsState}). Reiniciando...`);
+      waReady = false;
+      connecting = false;
+      sock = null;
+      scheduleReconnect(`watchdog-ws-state:${wsState}`);
+      return;
+    }
+
+    if (!sock && !waReady && !connecting) {
+      console.log("[WhatsApp] Watchdog detecto servicio sin socket activo. Reconectando...");
+      scheduleReconnect("watchdog-missing-socket");
+      return;
+    }
+
+    const staleThreshold = Math.max(WATCHDOG_INTERVAL_MS * 3, 45000);
+    const isStale = lastConnectionEventAt && Date.now() - lastConnectionEventAt > staleThreshold;
+
+    if (isStale && !connecting && !waQR) {
+      console.log("[WhatsApp] Watchdog detecto conexion sin eventos recientes. Reiniciando socket...");
+      waReady = false;
+      sock = null;
+      scheduleReconnect("watchdog-stale-connection");
+    }
+  }, WATCHDOG_INTERVAL_MS);
 }
 
 async function initWhatsApp() {
-  if (connecting) return;
+  if (connecting || waReady) return;
+  intentionalDisconnect = false;
   connecting = true;
+  markConnectionEvent();
+
+  if (!ensureActiveAuthDir()) {
+    connecting = false;
+    scheduleReconnect("auth-dir-unavailable");
+    return;
+  }
+
   try {
     const { version } = await fetchLatestBaileysVersion();
     console.log("[WhatsApp] Usando WA Web version:", version);
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { state, saveCreds } = await useMultiFileAuthState(activeAuthDir);
 
     sock = makeWASocket({
       auth: state,
       logger,
       version,
       browser: ["MovilDev", "Chrome", "1.0.0"],
+      connectTimeoutMs: CONNECT_TIMEOUT_MS,
+      keepAliveIntervalMs: KEEP_ALIVE_INTERVAL_MS,
+      markOnlineOnConnect: true,
+      syncFullHistory: false,
     });
 
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", (update) => {
+      markConnectionEvent();
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
@@ -164,33 +431,46 @@ async function initWhatsApp() {
       }
 
       if (connection === "close") {
+        sock = null;
         waReady = false;
         connecting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
+        const isRestartRequired = statusCode === DisconnectReason.restartRequired;
+        const isTransientClose = !loggedOut && !intentionalDisconnect;
 
-        if (loggedOut || statusCode === 405) {
-          retryCount++;
+        lastDisconnectReason = {
+          connection,
+          statusCode: statusCode ?? null,
+          loggedOut,
+          isRestartRequired,
+          intentionalDisconnect,
+          at: new Date().toISOString(),
+        };
+
+        if (intentionalDisconnect) {
+          console.log("[WhatsApp] Conexion cerrada por solicitud del administrador.");
+          return;
+        }
+
+        if (loggedOut) {
           waQR = null;
-          clearAuthDir();
-          if (retryCount >= MAX_RETRIES) {
-            console.error(
-              "[WhatsApp] Maximo de reintentos alcanzado. Detenido."
-            );
-            return;
+          if (RESET_SESSION_ON_LOGOUT) {
+            clearAuthDir();
           }
-          console.log(
-            `[WhatsApp] Sesion invalida (intento ${retryCount}/${MAX_RETRIES}). Reiniciando...`
-          );
-          setTimeout(() => initWhatsApp(), 3000);
-        } else {
-          retryCount = 0;
-          console.log(
-            "[WhatsApp] Desconectado (code:",
-            statusCode,
-            "). Reconectando..."
-          );
-          setTimeout(() => initWhatsApp(), 3000);
+          scheduleReconnect(`loggedOut:${statusCode ?? "unknown"}`);
+          return;
+        }
+
+        if (isRestartRequired) {
+          console.log("[WhatsApp] WhatsApp solicito reinicio de sesion. Reconectando...");
+          scheduleReconnect(`restartRequired:${statusCode}`);
+          return;
+        }
+
+        if (isTransientClose) {
+          console.log("[WhatsApp] Desconexion transitoria. Reconectando sin borrar sesion...");
+          scheduleReconnect(`transient:${statusCode ?? "unknown"}`);
         }
       }
 
@@ -199,14 +479,20 @@ async function initWhatsApp() {
         waQR = null;
         connecting = false;
         retryCount = 0;
+        lastDisconnectReason = null;
         console.log("[WhatsApp] Conectado y listo para enviar mensajes.");
       }
     });
+
+    sock.ev.on("messages.upsert", () => {
+      markConnectionEvent();
+    });
   } catch (err) {
+    sock = null;
     connecting = false;
+    markConnectionEvent();
     console.error("[WhatsApp] Error al inicializar:", err);
-    clearAuthDir();
-    setTimeout(() => initWhatsApp(), 5000);
+    scheduleReconnect("init-error");
   }
 }
 
@@ -237,7 +523,17 @@ app.use(express.json());
 
 /** GET /api/whatsapp/status — estado de conexión */
 app.get("/api/whatsapp/status", (_req, res) => {
-  res.json({ ready: waReady, hasQR: !!waQR });
+  const authDiagnostics = getAuthDirDiagnostics();
+
+  res.json({
+    ready: waReady,
+    hasQR: !!waQR,
+    connecting,
+    lastConnectionEventAt,
+    retryCount,
+    lastDisconnectReason,
+    ...authDiagnostics,
+  });
 });
 
 /** GET /api/whatsapp/qr — imagen QR para escanear */
@@ -260,10 +556,20 @@ app.get("/api/whatsapp/qr", async (_req, res) => {
 
 /**
  * POST /api/whatsapp/send-order-status
- * Body: { phone, order_id, status, total?, address? }
+ * Body: { phone, order_id, status, total?, address?, customer_name?, product_names? }
  */
 app.post("/api/whatsapp/send-order-status", async (req, res) => {
-  const { phone, order_id, status, total, address } = req.body;
+  const {
+    phone,
+    order_id,
+    status,
+    total,
+    address,
+    customer_name,
+    product_names,
+    shipping_company,
+    tracking_number,
+  } = req.body;
 
   if (!phone || !order_id || !status) {
     return res.status(400).json({ error: "Faltan campos: phone, order_id, status" });
@@ -276,14 +582,45 @@ app.post("/api/whatsapp/send-order-status", async (req, res) => {
       .json({ error: `Estado '${status}' no tiene mensaje definido.` });
   }
 
-  const body = template({ order_id, total, address });
+  const body = template({
+    order_id,
+    total,
+    address,
+    customer_name,
+    product_names,
+    shipping_company,
+    tracking_number,
+  });
   const sent = await sendMessage(phone, body);
 
   res.json({ sent, status, order_id });
 });
 
+/** POST /api/whatsapp/connect — inicia conexión */
+app.post("/api/whatsapp/connect", async (_req, res) => {
+  if (connecting || waReady) {
+    return res.json({ status: "already_connecting_or_connected", ready: waReady });
+  }
+  initWhatsApp();
+  res.json({ status: "connecting", ready: waReady });
+});
+
+/** POST /api/whatsapp/disconnect — termina conexión */
+app.post("/api/whatsapp/disconnect", async (req, res) => {
+  await disconnectWhatsApp();
+  res.json({ status: "disconnected", ready: waReady });
+});
+
 // ── Arranque ──
+const shouldAutoInit = process.env.WA_AUTO_INIT !== "false";
 app.listen(PORT, () => {
   console.log(`[WhatsApp Service] Escuchando en http://localhost:${PORT}`);
-  initWhatsApp();
+  ensureActiveAuthDir();
+  startWatchdog();
+  if (shouldAutoInit) {
+    console.log("[WhatsApp] Auto-iniciando conexión...");
+    initWhatsApp();
+  } else {
+    console.log("[WhatsApp] Auto-init deshabilitado. Usa POST /api/whatsapp/connect para conectar.");
+  }
 });

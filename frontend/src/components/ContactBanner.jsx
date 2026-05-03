@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
 import { MessageCircle, ShoppingBag } from 'lucide-react'; // Añadimos iconos para que se vea más pro
+import { Link } from 'react-router-dom';
 
 export default function ContactBanner() {
   // Configuración de WhatsApp

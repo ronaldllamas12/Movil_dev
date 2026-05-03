@@ -177,6 +177,8 @@ def ensure_orders_invoice_columns(engine: Engine) -> None:
         "customer_phone": "VARCHAR(40)",
         "delivery_address": "VARCHAR(300)",
         "delivery_city": "VARCHAR(120)",
+        "shipping_company": "VARCHAR(120)",
+        "tracking_number": "VARCHAR(120)",
         "payment_provider": "VARCHAR(40)",
         "payment_method": "VARCHAR(80)",
         "paid_at": "TIMESTAMP",

@@ -23,10 +23,15 @@ def send_order_status_whatsapp(
     status: str,
     total: float | None = None,
     address: str | None = None,
+    customer_name: str | None = None,
+    product_names: list[str] | None = None,
+    shipping_company: str | None = None,
+    tracking_number: str | None = None,
 ) -> None:
     """
     Envía una notificación de WhatsApp al cliente sobre el nuevo estado de su pedido.
     Delega al microservicio Node.js/Baileys en WA_SERVICE_URL.
+    Incluye nombre del cliente y productos cuando están disponibles.
     Si el servicio no está configurado o falla, sólo registra el evento.
     """
     if not phone:
@@ -52,6 +57,14 @@ def send_order_status_whatsapp(
         payload["total"] = total
     if address:
         payload["address"] = address
+    if customer_name:
+        payload["customer_name"] = customer_name
+    if product_names:
+        payload["product_names"] = product_names
+    if shipping_company:
+        payload["shipping_company"] = shipping_company
+    if tracking_number:
+        payload["tracking_number"] = tracking_number
 
     try:
         response = requests.post(

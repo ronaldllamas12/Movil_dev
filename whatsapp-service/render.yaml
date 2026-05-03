@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: movil-dev-whatsapp
+    runtime: node
+    rootDir: whatsapp-service
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/whatsapp/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WA_SERVICE_PORT
+        value: 3001
+      - key: WA_AUTO_INIT
+        value: "true"
+      - key: WA_RECONNECT_DELAY_MS
+        value: 3000
+      - key: WA_MAX_RETRIES
+        value: 20
+      - key: WA_RETRY_COOLDOWN_MS
+        value: 60000
+      - key: WA_WATCHDOG_INTERVAL_MS
+        value: 15000
+      - key: WA_CONNECT_TIMEOUT_MS
+        value: 60000
+      - key: WA_KEEPALIVE_INTERVAL_MS
+        value: 20000
+      - key: WA_RESET_SESSION_ON_LOGOUT
+        value: "false"
+      - key: WA_AUTH_DIR
+        value: /var/data/baileys_auth
+      - key: WA_AUTH_FALLBACK_DIR
+        value: .baileys_auth_ephemeral
+    disk:
+      name: whatsapp-auth
+      mountPath: /var/data
+      sizeGB: 1

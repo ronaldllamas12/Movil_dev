@@ -2,7 +2,13 @@ import apiClient from '../axiosClient';
 
 export async function getProducts(params = {}) {
   const response = await apiClient.get('/products', { params });
-  return response.data;
+  const payload = response.data;
+
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.products)) return payload.products;
+
+  return [];
 }
 
 export async function getProductById(productId) {

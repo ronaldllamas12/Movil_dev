@@ -23,6 +23,7 @@ import {
     sendOrderInvoice,
     updateOrderStatus,
 } from '../../api/services/ordersService';
+import { formatCurrency } from '../../utils/formatters';
 
 const ORDER_STATUS_META = {
   pending: { label: 'Pendiente', badge: 'bg-amber-100 text-amber-800 border border-amber-200' },
@@ -47,6 +48,7 @@ const ORDER_TRANSITIONS = {
 const STATUS_CHAIN = ['pending', 'paid', 'processing', 'shipped', 'delivered'];
 const REFUND_BASE_DRAFT = { refund_type: 'partial', amount: '', reason: '' };
 const REFUNDABLE_STATUSES = new Set(['paid', 'processing', 'shipped', 'delivered']);
+const SHIPMENT_BASE_DRAFT = { shippingCompany: '', trackingNumber: '' };
 
 function getChainStepState(stepStatus, orderStatus) {
   const stepIdx = STATUS_CHAIN.indexOf(stepStatus);
@@ -62,10 +64,6 @@ function getStatusLabel(status) {
 
 function getStatusBadgeClass(status) {
   return ORDER_STATUS_META[status]?.badge || 'bg-slate-100 text-slate-700 border border-slate-200';
-}
-
-function formatCurrency(value) {
-  return `$${Number(value || 0).toLocaleString('es-CO')}`;
 }
 
 function formatDateTime(value) {
@@ -112,6 +110,7 @@ export default function OrdersPanel() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderReasonDrafts, setOrderReasonDrafts] = useState({});
   const [refundDrafts, setRefundDrafts] = useState({});
+  const [shipmentDrafts, setShipmentDrafts] = useState({});
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -144,6 +143,8 @@ export default function OrdersPanel() {
 
   const getRefundDraft = (orderId) => refundDrafts[orderId] || REFUND_BASE_DRAFT;
 
+  const getShipmentDraft = (orderId) => shipmentDrafts[orderId] || SHIPMENT_BASE_DRAFT;
+
   const handleRefundDraftChange = (orderId, field, value) => {
     setRefundDrafts((prev) => ({
       ...prev,
@@ -154,15 +155,46 @@ export default function OrdersPanel() {
     }));
   };
 
+  const handleShipmentDraftChange = (orderId, field, value) => {
+    setShipmentDrafts((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...getShipmentDraft(orderId),
+        [field]: value,
+      },
+    }));
+  };
+
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     resetMessages();
+
+    const shipmentDraft = getShipmentDraft(orderId);
+    const shippingCompany = (shipmentDraft.shippingCompany || '').trim();
+    const trackingNumber = (shipmentDraft.trackingNumber || '').trim();
+
+    if (newStatus === 'shipped') {
+      if (!shippingCompany || !trackingNumber) {
+        setErrorMsg('Para cambiar a Enviado debes ingresar transportadora y numero de guia.');
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
       const reason = (orderReasonDrafts[orderId] || '').trim();
-      const updatedOrder = await updateOrderStatus(orderId, newStatus, reason);
+      const updatedOrder = await updateOrderStatus(
+        orderId,
+        newStatus,
+        reason,
+        newStatus === 'shipped' ? shippingCompany : null,
+        newStatus === 'shipped' ? trackingNumber : null,
+      );
       setOrders((prev) => prev.map((order) => (order.id === orderId ? updatedOrder : order)));
       setOrderReasonDrafts((prev) => ({ ...prev, [orderId]: '' }));
+      if (newStatus === 'shipped') {
+        setShipmentDrafts((prev) => ({ ...prev, [orderId]: SHIPMENT_BASE_DRAFT }));
+      }
       setSuccessMsg(`Estado actualizado a ${getStatusLabel(newStatus)}.`);
     } catch (error) {
       setErrorMsg(error?.response?.data?.detail || 'No se pudo actualizar el estado de la orden.');
@@ -275,6 +307,7 @@ export default function OrdersPanel() {
                 {orders.map((order) => {
                   const nextStatuses = ORDER_TRANSITIONS[order.status] || [];
                   const draft = getRefundDraft(order.id);
+                  const shipmentDraft = getShipmentDraft(order.id);
                   const refundedTotal = toRefundTotal(order);
                   const refundRemaining = toRefundRemaining(order);
 
@@ -346,13 +379,33 @@ export default function OrdersPanel() {
                             </div>
 
                             {nextStatuses.length > 0 ? (
-                              <input
-                                type="text"
-                                value={orderReasonDrafts[order.id] || ''}
-                                onChange={(event) => handleOrderReasonChange(order.id, event.target.value)}
-                                placeholder="Motivo (opcional) para transicion de estado"
-                                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
-                              />
+                              <div className="space-y-2">
+                                {nextStatuses.includes('shipped') ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <input
+                                      type="text"
+                                      value={shipmentDraft.shippingCompany}
+                                      onChange={(event) => handleShipmentDraftChange(order.id, 'shippingCompany', event.target.value)}
+                                      placeholder="Empresa transportadora (requerido para Enviado)"
+                                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={shipmentDraft.trackingNumber}
+                                      onChange={(event) => handleShipmentDraftChange(order.id, 'trackingNumber', event.target.value)}
+                                      placeholder="Numero de guia (requerido para Enviado)"
+                                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
+                                    />
+                                  </div>
+                                ) : null}
+                                <input
+                                  type="text"
+                                  value={orderReasonDrafts[order.id] || ''}
+                                  onChange={(event) => handleOrderReasonChange(order.id, event.target.value)}
+                                  placeholder="Motivo (opcional) para transicion de estado"
+                                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
+                                />
+                              </div>
                             ) : null}
                           </div>
                         </td>
@@ -434,6 +487,8 @@ export default function OrdersPanel() {
                                       </div>
                                       <p className="text-slate-900 font-semibold">{order.delivery_address || 'No registrada'}</p>
                                       {order.delivery_city ? <p className="text-slate-600 text-sm mt-0.5">{order.delivery_city}</p> : null}
+                                      {order.shipping_company ? <p className="text-slate-600 text-sm mt-1">Transportadora: {order.shipping_company}</p> : null}
+                                      {order.tracking_number ? <p className="text-emerald-700 text-sm font-semibold mt-0.5">Guia: {order.tracking_number}</p> : null}
                                     </div>
 
                                     <div className="rounded-xl border border-slate-100 border-l-4 border-l-blue-400 bg-slate-50/60 p-4">

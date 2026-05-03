@@ -55,6 +55,13 @@ def _is_public_https_url(url: str) -> bool:
     return url.startswith("https://")
 
 
+def _resolve_frontend_url(customer: Any) -> str:
+    runtime_origin = str(getattr(customer, "frontend_origin", "") or "").strip().rstrip("/")
+    if runtime_origin.startswith("http://") or runtime_origin.startswith("https://"):
+        return runtime_origin
+    return _frontend_url()
+
+
 def _format_amount(value: Decimal, currency: str) -> str:
     quantizer = Decimal("1") if currency in PAYPAL_ZERO_DECIMAL_CURRENCIES else Decimal("0.01")
     return str(value.quantize(quantizer, rounding=ROUND_HALF_UP))
@@ -230,6 +237,8 @@ def create_paypal_order(
     reference = build_internal_reference(user, "paypal")
     access_token = _paypal_access_token()
 
+    frontend_url = _resolve_frontend_url(customer)
+
     payload = {
         "intent": "CAPTURE",
         "purchase_units": [
@@ -251,8 +260,8 @@ def create_paypal_order(
             "brand_name": "Movil Dev",
             "landing_page": "NO_PREFERENCE",
             "user_action": "PAY_NOW",
-            "return_url": f"{_frontend_url()}/success?provider=paypal&order_id={order_id_db}",
-            "cancel_url": f"{_frontend_url()}/cancel",
+            "return_url": f"{frontend_url}/success?provider=paypal&order_id={order_id_db}",
+            "cancel_url": f"{frontend_url}/cancel",
         },
     }
 
@@ -382,7 +391,8 @@ def create_epayco_session(
         },
     }
 
-    response_url = f"{_frontend_url()}/success?provider=epayco&order_id={order_id_db}"
+    frontend_url = _resolve_frontend_url(customer)
+    response_url = f"{frontend_url}/success?provider=epayco&order_id={order_id_db}"
     confirmation_url = _env(
         "EPAYCO_CONFIRMATION_URL",
         f"{_backend_url()}/payments/epayco/confirmation",

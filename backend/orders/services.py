@@ -38,6 +38,25 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _whatsapp_product_names(db: Session, order: Order) -> list[str]:
+    product_ids = [item.product_id for item in order.items if item.product_id]
+    if not product_ids:
+        return []
+
+    products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+    product_map = {product.id: product.nombre for product in products}
+
+    names: list[str] = []
+    for item in order.items:
+        product_name = product_map.get(item.product_id)
+        if not product_name:
+            continue
+        qty = int(getattr(item, "quantity", 1) or 1)
+        names.append(f"{product_name} x{qty}")
+
+    return names
+
+
 def _create_status_history(
     db: Session,
     *,
@@ -243,12 +262,26 @@ def update_order_status(
     *,
     actor_user_id: int | None = None,
     reason: str | None = None,
+    shipping_company: str | None = None,
+    tracking_number: str | None = None,
 ) -> Order:
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise NotFoundError("Orden no encontrada.")
 
     previous_status = order.status
+
+    if status == OrderStatus.SHIPPED:
+        shipping_company_value = (shipping_company or "").strip()
+        tracking_number_value = (tracking_number or "").strip()
+
+        if not shipping_company_value or not tracking_number_value:
+            raise ConflictError(
+                "Para marcar como enviado debes registrar empresa transportadora y numero de guia."
+            )
+
+        order.shipping_company = shipping_company_value
+        order.tracking_number = tracking_number_value
 
     _transition_order_status(
         db,
@@ -271,6 +304,10 @@ def update_order_status(
         status=order.status,
         total=float(order.total) if order.total is not None else None,
         address=order.delivery_address,
+        customer_name=order.customer_name,
+        product_names=_whatsapp_product_names(db, order),
+        shipping_company=order.shipping_company,
+        tracking_number=order.tracking_number,
     )
 
     return order
@@ -314,6 +351,10 @@ def mark_order_paid(
             status=order.status,
             total=float(order.total) if order.total is not None else None,
             address=order.delivery_address,
+            customer_name=order.customer_name,
+            product_names=_whatsapp_product_names(db, order),
+            shipping_company=order.shipping_company,
+            tracking_number=order.tracking_number,
         )
 
     return order
