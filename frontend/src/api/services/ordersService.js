@@ -22,20 +22,17 @@ export const updateOrderStatus = async (
 };
 
 export const downloadOrderInvoice = async (orderId) => {
-  const viewer = window.open('', '_blank', 'noopener,noreferrer');
   const response = await axiosClient.get(`/orders/admin/${orderId}/invoice`, {
     responseType: 'blob',
   });
   const blobUrl = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-  if (viewer) {
-    viewer.location.href = blobUrl;
-  } else {
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.click();
-  }
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 };
 

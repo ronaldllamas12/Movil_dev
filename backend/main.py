@@ -53,13 +53,13 @@ def _parse_cors_origins() -> list[str]:
         "http://localhost:5173",
         "https://movil-dev.vercel.app",
         "https://movil-dev.onrender.com",
-        "https://movil-dev-k8ux.vercel.app/"
+        "https://movil-dev-k8ux.vercel.app"
     ]
 
     # Mantiene compatibilidad local aunque CORS_ALLOW_ORIGINS esté configurada en deploy.
     if configured_origins:
        return list(dict.fromkeys(configured_origins + default_origins))
-     return default_origins
+    return default_origins
 
     return default_origins
 
