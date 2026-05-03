@@ -1,8 +1,8 @@
 import {
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  makeWASocket,
-  useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    makeWASocket,
+    useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 import express from "express";
 import fs from "fs";
@@ -12,8 +12,14 @@ import QRCode from "qrcode";
 
 // ── Config ──
 const PORT = process.env.WA_SERVICE_PORT || 3001;
-const AUTH_DIR = path.resolve(".baileys_auth");
+const AUTH_DIR = path.resolve(process.env.WA_AUTH_DIR || ".baileys_auth");
 const logger = pino({ level: "silent" });
+const RECONNECT_DELAY_MS = Number(process.env.WA_RECONNECT_DELAY_MS || 3000);
+const MAX_RETRIES = Number(process.env.WA_MAX_RETRIES || 20);
+const RESET_SESSION_ON_LOGOUT = process.env.WA_RESET_SESSION_ON_LOGOUT === "true";
+const WATCHDOG_INTERVAL_MS = Number(process.env.WA_WATCHDOG_INTERVAL_MS || 15000);
+const CONNECT_TIMEOUT_MS = Number(process.env.WA_CONNECT_TIMEOUT_MS || 60000);
+const KEEP_ALIVE_INTERVAL_MS = Number(process.env.WA_KEEPALIVE_INTERVAL_MS || 20000);
 
 // ── Estado interno ──
 let sock = null;
@@ -21,7 +27,9 @@ let waReady = false;
 let waQR = null;
 let connecting = false;
 let retryCount = 0;
-const MAX_RETRIES = 5;
+let intentionalDisconnect = false;
+let watchdogTimer = null;
+let lastConnectionEventAt = 0;
 
 // ── Mensajes por estado de pedido ──
 const STATUS_MESSAGES = {
@@ -156,10 +164,15 @@ function clearAuthDir() {
 }
 
 export function getWhatsAppStatus() {
-  return { ready: waReady, qr: waQR, connecting };
+  return { ready: waReady, qr: waQR, connecting, lastConnectionEventAt };
+}
+
+function markConnectionEvent() {
+  lastConnectionEventAt = Date.now();
 }
 
 async function disconnectWhatsApp() {
+  intentionalDisconnect = true;
   if (sock) {
     try {
       await sock.logout();
@@ -173,13 +186,73 @@ async function disconnectWhatsApp() {
       console.error("[WhatsApp] Error al desconectar:", err);
       sock = null;
       waReady = false;
+    } finally {
+      connecting = false;
     }
   }
 }
 
+function scheduleReconnect(reason = "unknown") {
+  if (intentionalDisconnect) {
+    console.log("[WhatsApp] Reconexion omitida por desconexion intencional.");
+    return;
+  }
+
+  if (retryCount >= MAX_RETRIES) {
+    console.error(
+      `[WhatsApp] Maximo de reintentos alcanzado (${MAX_RETRIES}). Ultima causa: ${reason}`
+    );
+    return;
+  }
+
+  retryCount += 1;
+  console.log(
+    `[WhatsApp] Reintentando conexion (${retryCount}/${MAX_RETRIES}). Causa: ${reason}`
+  );
+  setTimeout(() => initWhatsApp(), RECONNECT_DELAY_MS);
+}
+
+function startWatchdog() {
+  if (watchdogTimer) return;
+
+  watchdogTimer = setInterval(() => {
+    if (intentionalDisconnect) return;
+
+    const wsState = sock?.ws?.readyState;
+    const looksDead = sock && wsState !== undefined && wsState !== 1;
+
+    if (looksDead) {
+      console.log(`[WhatsApp] Watchdog detecto socket no abierto (state=${wsState}). Reiniciando...`);
+      waReady = false;
+      connecting = false;
+      sock = null;
+      scheduleReconnect(`watchdog-ws-state:${wsState}`);
+      return;
+    }
+
+    if (!sock && !waReady && !connecting) {
+      console.log("[WhatsApp] Watchdog detecto servicio sin socket activo. Reconectando...");
+      scheduleReconnect("watchdog-missing-socket");
+      return;
+    }
+
+    const staleThreshold = Math.max(WATCHDOG_INTERVAL_MS * 3, 45000);
+    const isStale = lastConnectionEventAt && Date.now() - lastConnectionEventAt > staleThreshold;
+
+    if (isStale && !connecting && !waQR) {
+      console.log("[WhatsApp] Watchdog detecto conexion sin eventos recientes. Reiniciando socket...");
+      waReady = false;
+      sock = null;
+      scheduleReconnect("watchdog-stale-connection");
+    }
+  }, WATCHDOG_INTERVAL_MS);
+}
+
 async function initWhatsApp() {
-  if (connecting) return;
+  if (connecting || waReady) return;
+  intentionalDisconnect = false;
   connecting = true;
+  markConnectionEvent();
   try {
     const { version } = await fetchLatestBaileysVersion();
     console.log("[WhatsApp] Usando WA Web version:", version);
@@ -190,11 +263,16 @@ async function initWhatsApp() {
       logger,
       version,
       browser: ["MovilDev", "Chrome", "1.0.0"],
+      connectTimeoutMs: CONNECT_TIMEOUT_MS,
+      keepAliveIntervalMs: KEEP_ALIVE_INTERVAL_MS,
+      markOnlineOnConnect: true,
+      syncFullHistory: false,
     });
 
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", (update) => {
+      markConnectionEvent();
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
@@ -206,33 +284,37 @@ async function initWhatsApp() {
       }
 
       if (connection === "close") {
+        sock = null;
         waReady = false;
         connecting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
+        const isRestartRequired = statusCode === DisconnectReason.restartRequired;
+        const isTransientClose = !loggedOut && !intentionalDisconnect;
 
-        if (loggedOut || statusCode === 405) {
-          retryCount++;
+        if (intentionalDisconnect) {
+          console.log("[WhatsApp] Conexion cerrada por solicitud del administrador.");
+          return;
+        }
+
+        if (loggedOut) {
           waQR = null;
-          clearAuthDir();
-          if (retryCount >= MAX_RETRIES) {
-            console.error(
-              "[WhatsApp] Maximo de reintentos alcanzado. Detenido."
-            );
-            return;
+          if (RESET_SESSION_ON_LOGOUT) {
+            clearAuthDir();
           }
-          console.log(
-            `[WhatsApp] Sesion invalida (intento ${retryCount}/${MAX_RETRIES}). Reiniciando...`
-          );
-          setTimeout(() => initWhatsApp(), 3000);
-        } else {
-          retryCount = 0;
-          console.log(
-            "[WhatsApp] Desconectado (code:",
-            statusCode,
-            "). Reconectando..."
-          );
-          setTimeout(() => initWhatsApp(), 3000);
+          scheduleReconnect(`loggedOut:${statusCode ?? "unknown"}`);
+          return;
+        }
+
+        if (isRestartRequired) {
+          console.log("[WhatsApp] WhatsApp solicito reinicio de sesion. Reconectando...");
+          scheduleReconnect(`restartRequired:${statusCode}`);
+          return;
+        }
+
+        if (isTransientClose) {
+          console.log("[WhatsApp] Desconexion transitoria. Reconectando sin borrar sesion...");
+          scheduleReconnect(`transient:${statusCode ?? "unknown"}`);
         }
       }
 
@@ -244,11 +326,16 @@ async function initWhatsApp() {
         console.log("[WhatsApp] Conectado y listo para enviar mensajes.");
       }
     });
+
+    sock.ev.on("messages.upsert", () => {
+      markConnectionEvent();
+    });
   } catch (err) {
+    sock = null;
     connecting = false;
+    markConnectionEvent();
     console.error("[WhatsApp] Error al inicializar:", err);
-    clearAuthDir();
-    setTimeout(() => initWhatsApp(), 5000);
+    scheduleReconnect("init-error");
   }
 }
 
@@ -279,7 +366,12 @@ app.use(express.json());
 
 /** GET /api/whatsapp/status — estado de conexión */
 app.get("/api/whatsapp/status", (_req, res) => {
-  res.json({ ready: waReady, hasQR: !!waQR });
+  res.json({
+    ready: waReady,
+    hasQR: !!waQR,
+    connecting,
+    lastConnectionEventAt,
+  });
 });
 
 /** GET /api/whatsapp/qr — imagen QR para escanear */
@@ -343,6 +435,7 @@ app.post("/api/whatsapp/disconnect", async (req, res) => {
 const shouldAutoInit = process.env.WA_AUTO_INIT !== "false";
 app.listen(PORT, () => {
   console.log(`[WhatsApp Service] Escuchando en http://localhost:${PORT}`);
+  startWatchdog();
   if (shouldAutoInit) {
     console.log("[WhatsApp] Auto-iniciando conexión...");
     initWhatsApp();

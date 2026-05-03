@@ -11,12 +11,10 @@ export default function GoogleSignInSection({ isGoogleEnabled, googleScriptError
         {isGoogleEnabled ? <div ref={googleButtonRef} className="min-h-10" /> : null}
       </div>
 
-      {!isGoogleEnabled ? (
+      {isGoogleEnabled ? null:
         <p className="text-center text-xs text-amber-700">
           Google Sign-In no está disponible: falta la variable VITE_GOOGLE_CLIENT_ID en el entorno de producción.
-        </p>
-      ) : null}
-
+        </p>}
       {googleScriptError ? (
         <p className="text-center text-xs text-red-700">{googleScriptError}</p>
       ) : null}

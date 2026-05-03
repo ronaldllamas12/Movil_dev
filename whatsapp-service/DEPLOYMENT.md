@@ -1,8 +1,41 @@
-# Deployment de WhatsApp Service en Vercel
+# Deployment de WhatsApp Service
 
 ## Descripción
 
-Este microservicio WhatsApp (basado en Baileys) se puede desplegar en Vercel. Vercel ejecutará el servidor Node.js de forma serverless con funciones permanentes.
+Este microservicio WhatsApp (basado en Baileys) debe desplegarse en una plataforma con proceso persistente y disco persistente si quieres evitar desconexiones frecuentes. Render es una buena opción si lo despliegas como servicio separado del backend.
+
+## Opción recomendada: Render
+
+Ya quedó preparado un blueprint en [whatsapp-service/render.yaml](whatsapp-service/render.yaml).
+
+### Qué debes hacer en Render
+
+1. Crea un nuevo Web Service apuntando a la carpeta `whatsapp-service`.
+2. Usa el archivo `render.yaml` o replica esa configuración manualmente.
+3. Asegúrate de que el servicio tenga disco persistente montado en `/var/data`.
+4. Mantén estas variables:
+
+```env
+NODE_ENV=production
+WA_SERVICE_PORT=3001
+WA_AUTO_INIT=true
+WA_RECONNECT_DELAY_MS=3000
+WA_MAX_RETRIES=20
+WA_RESET_SESSION_ON_LOGOUT=false
+WA_AUTH_DIR=/var/data/baileys_auth
+```
+
+### Qué debes cambiar en tu backend desplegado en Render
+
+En el servicio backend, configura:
+
+```env
+WA_SERVICE_URL=https://TU-SERVICIO-WHATSAPP.onrender.com
+```
+
+Con eso, el backend seguirá en Render como ahora, pero las conexiones de WhatsApp vivirán en otro servicio dedicado y persistente.
+
+## Opción no recomendada: Vercel
 
 ## Requisitos previos
 
@@ -10,7 +43,7 @@ Este microservicio WhatsApp (basado en Baileys) se puede desplegar en Vercel. Ve
 2. Código del repositorio en GitHub
 3. Variables de entorno configuradas
 
-## Pasos de deployment
+## Pasos de deployment en Vercel
 
 ### 1. Conecta tu repositorio en Vercel
 
@@ -57,9 +90,10 @@ WA_SERVICE_URL=https://your-project.vercel.app
 
 ## Notas importantes
 
-- **Almacenamiento de sesión**: Las sesiones se guardan en `.baileys_auth/`. En Vercel, esto es temporal (se limpia entre deploys). Para persistencia, necesitarías usar una base de datos o storage externo.
+- **Persistencia real de sesión**: Las sesiones se guardan en `.baileys_auth/`. En Vercel, ese almacenamiento es efímero, por lo que la conexión puede perderse aunque el código reconecte bien. Si necesitas que WhatsApp no se desconecte, despliega este servicio en Railway, Render sin auto-sleep, VPS o Docker con disco persistente.
 - **Modo demo**: Si no está conectado, aparecerá un QR en `GET /api/whatsapp/qr`.
 - **Auto-init**: Configura `WA_AUTO_INIT=false` si no quieres que inicie automáticamente en el deployment.
+- **Reconexión**: Puedes ajustar `WA_RECONNECT_DELAY_MS`, `WA_MAX_RETRIES` y `WA_RESET_SESSION_ON_LOGOUT`.
 
 ## Troubleshooting
 
@@ -70,7 +104,9 @@ WA_SERVICE_URL=https://your-project.vercel.app
 
 ### La conexión se cae
 
-- Vercel puede reiniciar la función en cualquier momento. Usa los botones "Conectar/Desconectar" del panel admin para reintentar.
+- Si estás en Vercel, el problema es de plataforma: no mantiene bien sockets largos ni almacenamiento local persistente.
+- Si estás local o en servidor persistente, el servicio ahora intenta reconectar sin borrar la sesión en cierres transitorios.
+- Usa `WA_RESET_SESSION_ON_LOGOUT=true` solo si realmente quieres forzar limpieza de credenciales cuando WhatsApp invalide la sesión.
 
 ### ¿Cómo verifico los logs?
 
