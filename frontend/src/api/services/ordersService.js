@@ -5,10 +5,18 @@ export const getAllOrders = async () => {
   return response.data;
 };
 
-export const updateOrderStatus = async (orderId, status, reason = '') => {
+export const updateOrderStatus = async (
+  orderId,
+  status,
+  reason = '',
+  shippingCompany = null,
+  trackingNumber = null,
+) => {
   const response = await axiosClient.put(`/orders/admin/${orderId}/status`, {
     status,
     reason: reason || null,
+    shipping_company: shippingCompany || null,
+    tracking_number: trackingNumber || null,
   });
   return response.data;
 };

@@ -36,6 +36,65 @@ let lastDisconnectReason = null;
 let activeAuthDir = AUTH_DIR;
 let usingFallbackAuthDir = false;
 
+function normalizeCarrierName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function cleanTrackingNumber(value) {
+  return String(value || "").replace(/\s+/g, "").trim();
+}
+
+function buildTrackingLink(shippingCompany, trackingNumber) {
+  const company = normalizeCarrierName(shippingCompany);
+  const guide = cleanTrackingNumber(trackingNumber);
+
+  if (!company || !guide) {
+    return null;
+  }
+
+  if (company.includes("servientrega")) {
+    return `https://www.servientrega.com/wps/portal/rastreo-envios?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("coordinadora")) {
+    return `https://www.coordinadora.com/rastreo/rastreo-de-guia/?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("interrapidisimo") || company.includes("inter rapidisimo")) {
+    return `https://www.interrapidisimo.co/seguimiento-de-envios/?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("deprisa")) {
+    return `https://www.deprisa.com/Tracking/?guideNumber=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("envia") || company.includes("envia colvan")) {
+    return `https://www.envia.co/seguimiento?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("tcc")) {
+    return `https://www.tcc.com.co/rastreo?guia=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("dhl")) {
+    return `https://www.dhl.com/co-es/home/tracking/tracking-express.html?submit=1&tracking-id=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("fedex")) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(guide)}`;
+  }
+
+  if (company.includes("ups")) {
+    return `https://www.ups.com/track?tracknum=${encodeURIComponent(guide)}`;
+  }
+
+  return null;
+}
+
 // ── Mensajes por estado de pedido ──
 const STATUS_MESSAGES = {
   paid: (order) =>
@@ -68,17 +127,24 @@ const STATUS_MESSAGES = {
       .join("\n"),
 
   shipped: (order) =>
-    [
+    (() => {
+      const trackingLink = buildTrackingLink(order.shipping_company, order.tracking_number);
+
+      return [
       `🚚 *¡Tu pedido fue enviado!*`,
       ``,
       `Hola ${order.customer_name || "cliente"}, tu pedido *#${order.order_id}* está en camino.`,
       formatProducts(order.product_names),
+      order.shipping_company ? `📦 Transportadora: ${order.shipping_company}` : null,
+      order.tracking_number ? `🔎 Número de guía: *${order.tracking_number}*` : null,
+      trackingLink ? `🔗 Rastrea tu envío: ${trackingLink}` : null,
       order.address ? `📍 Dirección: ${order.address}` : null,
       ``,
       `¡Pronto lo recibirás! 🎁`,
       ``,
       `_Movil Dev_`,
-    ]
+      ];
+    })()
       .filter((l) => l !== null)
       .join("\n"),
 
@@ -493,7 +559,17 @@ app.get("/api/whatsapp/qr", async (_req, res) => {
  * Body: { phone, order_id, status, total?, address?, customer_name?, product_names? }
  */
 app.post("/api/whatsapp/send-order-status", async (req, res) => {
-  const { phone, order_id, status, total, address, customer_name, product_names } = req.body;
+  const {
+    phone,
+    order_id,
+    status,
+    total,
+    address,
+    customer_name,
+    product_names,
+    shipping_company,
+    tracking_number,
+  } = req.body;
 
   if (!phone || !order_id || !status) {
     return res.status(400).json({ error: "Faltan campos: phone, order_id, status" });
@@ -506,7 +582,15 @@ app.post("/api/whatsapp/send-order-status", async (req, res) => {
       .json({ error: `Estado '${status}' no tiene mensaje definido.` });
   }
 
-  const body = template({ order_id, total, address, customer_name, product_names });
+  const body = template({
+    order_id,
+    total,
+    address,
+    customer_name,
+    product_names,
+    shipping_company,
+    tracking_number,
+  });
   const sent = await sendMessage(phone, body);
 
   res.json({ sent, status, order_id });

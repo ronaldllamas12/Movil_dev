@@ -25,6 +25,8 @@ def send_order_status_whatsapp(
     address: str | None = None,
     customer_name: str | None = None,
     product_names: list[str] | None = None,
+    shipping_company: str | None = None,
+    tracking_number: str | None = None,
 ) -> None:
     """
     Envía una notificación de WhatsApp al cliente sobre el nuevo estado de su pedido.
@@ -59,6 +61,10 @@ def send_order_status_whatsapp(
         payload["customer_name"] = customer_name
     if product_names:
         payload["product_names"] = product_names
+    if shipping_company:
+        payload["shipping_company"] = shipping_company
+    if tracking_number:
+        payload["tracking_number"] = tracking_number
 
     try:
         response = requests.post(

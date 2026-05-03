@@ -132,6 +132,8 @@ def update_order_status_admin(
         request.status,
         actor_user_id=current_admin.id,
         reason=request.reason,
+        shipping_company=request.shipping_company,
+        tracking_number=request.tracking_number,
     )
 
 

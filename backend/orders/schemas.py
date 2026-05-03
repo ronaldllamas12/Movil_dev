@@ -50,6 +50,8 @@ class OrderSchema(BaseModel):
     customer_phone: str | None = None
     delivery_address: str | None = None
     delivery_city: str | None = None
+    shipping_company: str | None = None
+    tracking_number: str | None = None
     payment_provider: str | None = None
     payment_method: str | None = None
     paid_at: datetime | None = None
@@ -67,6 +69,8 @@ class OrderSchema(BaseModel):
 class UpdateStatusRequest(BaseModel):
     status: str
     reason: str | None = None
+    shipping_company: str | None = None
+    tracking_number: str | None = None
 
 
 class CancelOrderRequest(BaseModel):

@@ -262,12 +262,26 @@ def update_order_status(
     *,
     actor_user_id: int | None = None,
     reason: str | None = None,
+    shipping_company: str | None = None,
+    tracking_number: str | None = None,
 ) -> Order:
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise NotFoundError("Orden no encontrada.")
 
     previous_status = order.status
+
+    if status == OrderStatus.SHIPPED:
+        shipping_company_value = (shipping_company or "").strip()
+        tracking_number_value = (tracking_number or "").strip()
+
+        if not shipping_company_value or not tracking_number_value:
+            raise ConflictError(
+                "Para marcar como enviado debes registrar empresa transportadora y numero de guia."
+            )
+
+        order.shipping_company = shipping_company_value
+        order.tracking_number = tracking_number_value
 
     _transition_order_status(
         db,
@@ -292,6 +306,8 @@ def update_order_status(
         address=order.delivery_address,
         customer_name=order.customer_name,
         product_names=_whatsapp_product_names(db, order),
+        shipping_company=order.shipping_company,
+        tracking_number=order.tracking_number,
     )
 
     return order
@@ -337,6 +353,8 @@ def mark_order_paid(
             address=order.delivery_address,
             customer_name=order.customer_name,
             product_names=_whatsapp_product_names(db, order),
+            shipping_company=order.shipping_company,
+            tracking_number=order.tracking_number,
         )
 
     return order
