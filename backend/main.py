@@ -52,7 +52,8 @@ def _parse_cors_origins() -> list[str]:
         "http://127.0.0.1:5173",
         "http://localhost:5173",
         "https://movil-dev.vercel.app",
-        "https://movil-dev.onrender.com"
+        "https://movil-dev.onrender.com",
+        "https://movil-dev-k8ux.vercel.app/"
     ]
 
     # Mantiene compatibilidad local aunque CORS_ALLOW_ORIGINS esté configurada en deploy.
