@@ -1,6 +1,7 @@
 """Archivo principal de la aplicación FastAPI para la API."""
 
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,7 +22,7 @@ for path in (BACKEND_DIR, PROJECT_ROOT):
 from auth.router import router as auth_router
 from cart.models import CartItem
 from cart.router import router as cart_router
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from orders.models import Order, OrderItem, OrderRefund, OrderStatusHistory
@@ -71,6 +72,35 @@ def _parse_cors_origin_regex() -> str | None:
     return r"https://.*\.vercel\.app"
 
 
+ALLOWED_CORS_ORIGINS = _parse_cors_origins()
+ALLOWED_CORS_ORIGIN_REGEX = _parse_cors_origin_regex()
+
+
+def _origin_is_allowed(origin: str | None) -> bool:
+    if not origin:
+        return False
+
+    if origin in ALLOWED_CORS_ORIGINS:
+        return True
+
+    if not ALLOWED_CORS_ORIGIN_REGEX:
+        return False
+
+    return re.fullmatch(ALLOWED_CORS_ORIGIN_REGEX, origin) is not None
+
+
+def _apply_cors_headers(response: Response, origin: str | None) -> Response:
+    if not _origin_is_allowed(origin):
+        return response
+
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type,Accept,Origin,X-Requested-With"
+    response.headers["Vary"] = "Origin"
+    return response
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Inicializa la base de datos al arrancar la aplicación."""
@@ -87,12 +117,23 @@ app = FastAPI(title="API de Autenticación", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_parse_cors_origins(),
-    allow_origin_regex=_parse_cors_origin_regex(),
+    allow_origins=ALLOWED_CORS_ORIGINS,
+    allow_origin_regex=ALLOWED_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def ensure_cors_headers(request: Request, call_next):
+    origin = request.headers.get("origin")
+
+    if request.method == "OPTIONS":
+        return _apply_cors_headers(Response(status_code=204), origin)
+
+    response = await call_next(request)
+    return _apply_cors_headers(response, origin)
 
 
 @app.get("/")

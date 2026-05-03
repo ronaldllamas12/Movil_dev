@@ -30,6 +30,7 @@ let retryCount = 0;
 let intentionalDisconnect = false;
 let watchdogTimer = null;
 let lastConnectionEventAt = 0;
+let lastDisconnectReason = null;
 
 // ── Mensajes por estado de pedido ──
 const STATUS_MESSAGES = {
@@ -163,6 +164,26 @@ function clearAuthDir() {
   }
 }
 
+function getAuthDirDiagnostics() {
+  try {
+    const exists = fs.existsSync(AUTH_DIR);
+    const files = exists ? fs.readdirSync(AUTH_DIR) : [];
+
+    return {
+      authDir: AUTH_DIR,
+      authDirExists: exists,
+      authFileCount: files.length,
+    };
+  } catch (error) {
+    return {
+      authDir: AUTH_DIR,
+      authDirExists: false,
+      authFileCount: 0,
+      authDirError: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export function getWhatsAppStatus() {
   return { ready: waReady, qr: waQR, connecting, lastConnectionEventAt };
 }
@@ -292,6 +313,15 @@ async function initWhatsApp() {
         const isRestartRequired = statusCode === DisconnectReason.restartRequired;
         const isTransientClose = !loggedOut && !intentionalDisconnect;
 
+        lastDisconnectReason = {
+          connection,
+          statusCode: statusCode ?? null,
+          loggedOut,
+          isRestartRequired,
+          intentionalDisconnect,
+          at: new Date().toISOString(),
+        };
+
         if (intentionalDisconnect) {
           console.log("[WhatsApp] Conexion cerrada por solicitud del administrador.");
           return;
@@ -323,6 +353,7 @@ async function initWhatsApp() {
         waQR = null;
         connecting = false;
         retryCount = 0;
+        lastDisconnectReason = null;
         console.log("[WhatsApp] Conectado y listo para enviar mensajes.");
       }
     });
@@ -366,11 +397,16 @@ app.use(express.json());
 
 /** GET /api/whatsapp/status — estado de conexión */
 app.get("/api/whatsapp/status", (_req, res) => {
+  const authDiagnostics = getAuthDirDiagnostics();
+
   res.json({
     ready: waReady,
     hasQR: !!waQR,
     connecting,
     lastConnectionEventAt,
+    retryCount,
+    lastDisconnectReason,
+    ...authDiagnostics,
   });
 });
 
