@@ -1,7 +1,5 @@
 """Archivo principal de la aplicación FastAPI para la API."""
 
-import os
-import re
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,96 +17,28 @@ for path in (BACKEND_DIR, PROJECT_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from auth.router import router as auth_router
-from cart.models import CartItem
-from cart.router import router as cart_router
-from fastapi import FastAPI, Request, Response
+# Import side effects ensure all SQLAlchemy models are registered in Base metadata.
+import cart.models  # noqa: F401
+import orders.models  # noqa: F401
+import products.models  # noqa: F401
+
+from api.router import api_router
+from core.bootstrap import initialize_database_schema
+from core.cors import ensure_cors_headers_middleware
+from core.settings import Settings
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from orders.models import Order, OrderItem, OrderRefund, OrderStatusHistory
-from payments.router import router as payments_router
-from products.models import Product
-from products.router import router as products_router
 
-from database.core.database import (Base, ensure_cart_items_session_column,
-                                    ensure_orders_invoice_columns,
-                                    ensure_products_new_columns,
-                                    ensure_user_role_column, get_engine)
-from database.core.errors import (AppError, ConflictError, ForbiddenError,
-                                  NotFoundError, UnauthorizedError)
-
-
-def _parse_cors_origins() -> list[str]:
-    raw_origins = os.getenv("CORS_ALLOW_ORIGINS", "")
-    configured_origins = [
-        origin.strip() for origin in raw_origins.split(",") if origin.strip()
-    ]
-
-    default_origins = [
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "https://movil-dev.vercel.app",
-        "https://movil-dev.onrender.com",
-        "https://movil-dev-k8ux.vercel.app"
-    ]
-
-    # Mantiene compatibilidad local aunque CORS_ALLOW_ORIGINS esté configurada en deploy.
-    if configured_origins:
-       return list(dict.fromkeys(configured_origins + default_origins))
-    return default_origins
-
-
-def _parse_cors_origin_regex() -> str | None:
-    configured_regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip()
-    if configured_regex:
-        return configured_regex
-
-    # Permite dominios de preview/branch en Vercel.
-    return r"https://.*\.vercel\.app"
-
-
-ALLOWED_CORS_ORIGINS = _parse_cors_origins()
-ALLOWED_CORS_ORIGIN_REGEX = _parse_cors_origin_regex()
-
-
-def _origin_is_allowed(origin: str | None) -> bool:
-    if not origin:
-        return False
-
-    if origin in ALLOWED_CORS_ORIGINS:
-        return True
-
-    if not ALLOWED_CORS_ORIGIN_REGEX:
-        return False
-
-    return re.fullmatch(ALLOWED_CORS_ORIGIN_REGEX, origin) is not None
-
-
-def _apply_cors_headers(response: Response, origin: str | None) -> Response:
-    if not _origin_is_allowed(origin):
-        return response
-
-    response.headers["Access-Control-Allow-Origin"] = origin
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type,Accept,Origin,X-Requested-With"
-    response.headers["Vary"] = "Origin"
-    return response
+from database.core.database import get_engine
+from database.core.errors import (AppError, ConflictError, ForbiddenError,NotFoundError, UnauthorizedError)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Inicializa la base de datos al arrancar la aplicación."""
     engine = get_engine()
-    Base.metadata.create_all(bind=engine)
-    ensure_user_role_column(engine)
-    ensure_products_new_columns(engine)
-    ensure_orders_invoice_columns(engine)
-    ensure_cart_items_session_column(engine)
+    initialize_database_schema(engine)
     yield
 
 
@@ -116,23 +46,15 @@ app = FastAPI(title="API de Autenticación", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_CORS_ORIGINS,
-    allow_origin_regex=ALLOWED_CORS_ORIGIN_REGEX,
+    allow_origins=Settings.cors_origins,
+    allow_origin_regex=Settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.middleware("http")
-async def ensure_cors_headers(request: Request, call_next):
-    origin = request.headers.get("origin")
-
-    if request.method == "OPTIONS":
-        return _apply_cors_headers(Response(status_code=204), origin)
-
-    response = await call_next(request)
-    return _apply_cors_headers(response, origin)
+app.middleware("http")(ensure_cors_headers_middleware)
 
 
 @app.get("/")
@@ -169,14 +91,4 @@ def handle_conflict(_: Request, exc: ConflictError):
     return _error_response(409, exc)
 
 
-app.include_router(auth_router)
-app.include_router(products_router)
-app.include_router(cart_router)
-app.include_router(payments_router)
-
-# Importa y registra el router de órdenes
-from orders.router import router as orders_router
-from orders.whatsapp_router import router as whatsapp_admin_router
-
-app.include_router(orders_router)
-app.include_router(whatsapp_admin_router)
+app.include_router(api_router)

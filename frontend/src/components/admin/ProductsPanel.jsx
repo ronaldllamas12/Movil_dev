@@ -235,7 +235,15 @@ export default function ProductsPanel() {
           <Plus className="size-4" />
           Crear producto
         </div>
-        <ProductFields form={createForm} onChange={handleFormInput(setCreateForm)} />
+        <ProductFields
+          form={createForm}
+          onChange={handleFormInput(setCreateForm)}
+          onVariantsChange={(variants) => setCreateForm((prev) => ({ ...prev, color_variants: variants }))}
+          onVariantImageUpload={async (file) => {
+            const uploaded = await uploadProductImage(file);
+            return String(uploaded?.url || '').trim() || null;
+          }}
+        />
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
           <p className="text-sm font-medium text-slate-800">Subir imagen de producto a Cloudinary</p>
@@ -282,7 +290,15 @@ export default function ProductsPanel() {
               Cancelar edicion
             </button>
           </div>
-          <ProductFields form={editForm} onChange={handleFormInput(setEditForm)} />
+          <ProductFields
+            form={editForm}
+            onChange={handleFormInput(setEditForm)}
+            onVariantsChange={(variants) => setEditForm((prev) => ({ ...prev, color_variants: variants }))}
+            onVariantImageUpload={async (file) => {
+              const uploaded = await uploadProductImage(file);
+              return String(uploaded?.url || '').trim() || null;
+            }}
+          />
 
           <div className="rounded-2xl border border-blue-200 bg-white p-4 space-y-3">
             <p className="text-sm font-medium text-slate-800">Subir nueva imagen a Cloudinary</p>

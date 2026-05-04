@@ -1,11 +1,69 @@
 """Servicios CRUD para productos."""
 
+from typing import Any
+
 from products.models import Product
 from products.schemas import ProductCreate, ProductUpdate
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.core.errors import ConflictError, NotFoundError
+
+
+def _normalize_colors(colors: list[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for color in colors:
+        clean = color.strip()
+        if not clean:
+            continue
+
+        key = clean.lower()
+        if key in seen:
+            continue
+
+        seen.add(key)
+        normalized.append(clean)
+
+    return normalized
+
+
+def _normalize_color_variants(raw_variants: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for variant in raw_variants:
+        color = str(variant.get("color", "")).strip()
+        if not color:
+            raise ConflictError("Cada variante debe incluir un color válido.")
+
+        key = color.lower()
+        if key in seen:
+            raise ConflictError("No se permiten colores repetidos en variantes.")
+
+        stock = variant.get("stock")
+        if not isinstance(stock, int):
+            raise ConflictError("El stock por color debe ser un entero.")
+        if stock < 0:
+            raise ConflictError("El stock por color no puede ser negativo.")
+
+        image_url_value = variant.get("image_url")
+        image_url = None
+        if image_url_value is not None:
+            clean_url = str(image_url_value).strip()
+            image_url = clean_url or None
+
+        normalized.append(
+            {
+                "color": color,
+                "image_url": image_url,
+                "stock": stock,
+            }
+        )
+        seen.add(key)
+
+    return normalized
 
 
 def list_products(db: Session, skip: int = 0, limit: int = 100, categoria: str | None = None) -> list[Product]:
@@ -37,6 +95,13 @@ def create_product(db: Session, payload: ProductCreate) -> Product:
 
     data = payload.model_dump()
     data["referencia"] = referencia
+    data["colores_disponibles"] = _normalize_colors(data.get("colores_disponibles", []))
+
+    variants = _normalize_color_variants(data.get("color_variants", []))
+    data["color_variants"] = variants
+    if variants:
+        data["colores_disponibles"] = [variant["color"] for variant in variants]
+        data["cantidad_stock"] = sum(variant["stock"] for variant in variants)
 
     product = Product(**data)
     db.add(product)
@@ -57,6 +122,15 @@ def update_product(db: Session, product_id: int, payload: ProductUpdate) -> Prod
             if existing:
                 raise ConflictError("Ya existe un producto con esa referencia.")
         changes["referencia"] = new_ref
+
+    if "colores_disponibles" in changes and changes["colores_disponibles"] is not None:
+        changes["colores_disponibles"] = _normalize_colors(changes["colores_disponibles"])
+
+    if "color_variants" in changes and changes["color_variants"] is not None:
+        variants = _normalize_color_variants(changes["color_variants"])
+        changes["color_variants"] = variants
+        changes["colores_disponibles"] = [variant["color"] for variant in variants]
+        changes["cantidad_stock"] = sum(variant["stock"] for variant in variants)
 
     for field, value in changes.items():
         setattr(product, field, value)

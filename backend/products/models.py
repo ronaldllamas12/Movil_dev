@@ -52,6 +52,12 @@ class Product(Base):
         JSON, nullable=False, default=list
     )
 
+    color_variants: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+    )
+
     conectividad: Mapped[str] = mapped_column(String(120), nullable=False)
 
     procesador: Mapped[str] = mapped_column(String(120), nullable=False)

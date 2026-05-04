@@ -8,6 +8,7 @@ class CartAddRequest(BaseModel):
 
     product_id: int = Field(..., ge=1)
     quantity: int = Field(default=1, ge=1)
+    color_selected: str | None = Field(default=None, max_length=50)
 
 
 class CartItemResponse(BaseModel):
@@ -18,6 +19,7 @@ class CartItemResponse(BaseModel):
     referencia: str
     nombre: str
     imagen_url: str | None = None
+    color_selected: str | None = None
     quantity: int
     price: float
     line_total: float
@@ -59,6 +61,7 @@ class CartMergeItem(BaseModel):
 
     product_id: int = Field(..., ge=1)
     quantity: int = Field(..., ge=1)
+    color_selected: str | None = Field(default=None, max_length=50)
 
 
 class CartMergeRequest(BaseModel):

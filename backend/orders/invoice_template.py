@@ -323,7 +323,7 @@ def render_invoice_pdf(
     story.append(parties)
     story.append(Spacer(1, 5 * mm))
 
-    story.append(_section_title("Detalle de bienes o servicios", styles))
+    story.append(_section_title("Detalle de la Compra", styles))
     item_rows = [
         ["Item", "Cant.", "Unidad", "Descripcion", "Codigo", "Vr. unitario", "Impuestos", "Total"],
     ]

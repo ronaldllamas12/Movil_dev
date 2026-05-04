@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  mapProductFromApi,
-  mapProductsFromApi,
-  mapProductToApi,
-  toProductCardModel,
+    mapProductFromApi,
+    mapProductsFromApi,
+    mapProductToApi,
+    toProductCardModel,
 } from './productMapper.js';
 
 const apiProduct = {
@@ -20,6 +20,10 @@ const apiProduct = {
   tamano_memoria_ram: '8GB',
   rom: '128GB',
   colores_disponibles: ['Negro', 'Azul'],
+  color_variants: [
+    { color: 'Negro', stock: 4, image_url: 'https://example.com/negro.jpg' },
+    { color: 'Azul', stock: 1, image_url: 'https://example.com/azul.jpg' },
+  ],
   conectividad: '5G',
   procesador: 'Test Chip',
   dimensiones: '160x70x8',
@@ -42,6 +46,7 @@ test('mapProductFromApi normaliza precios, colores e imagen', () => {
   assert.equal(mapped.precio, 1190000);
   assert.equal(mapped.formattedPrice, '1.190.000');
   assert.deepEqual(mapped.colores_disponibles, ['Negro', 'Azul']);
+  assert.equal(mapped.color_variants.length, 2);
   assert.equal(mapped.image, 'https://example.com/phone.jpg');
 });
 
@@ -49,6 +54,7 @@ test('mapProductFromApi acepta colores como JSON serializado', () => {
   const mapped = mapProductFromApi({
     ...apiProduct,
     colores_disponibles: '["Rojo","Blanco"]',
+    color_variants: [],
   });
 
   assert.deepEqual(mapped.colores_disponibles, ['Rojo', 'Blanco']);
@@ -64,10 +70,12 @@ test('mapProductToApi transforma el modelo frontend al contrato del backend', ()
     ...apiProduct,
     precio: 950000,
     colores_disponibles: ['Negro'],
+    color_variants: [{ color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' }],
   });
 
   assert.equal(payload.precio_unitario, 1190000);
-  assert.equal(payload.colores_disponibles, '["Negro"]');
+  assert.deepEqual(payload.colores_disponibles, ['Negro']);
+  assert.deepEqual(payload.color_variants, [{ color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' }]);
   assert.equal(payload.is_active, true);
 });
 

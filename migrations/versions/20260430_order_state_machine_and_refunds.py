@@ -17,35 +17,36 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "order_status_history",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("order_id", sa.Integer(), nullable=False),
-        sa.Column("from_status", sa.String(length=32), nullable=True),
-        sa.Column("to_status", sa.String(length=32), nullable=False),
-        sa.Column("reason", sa.String(length=300), nullable=True),
-        sa.Column("actor_user_id", sa.Integer(), nullable=True),
-        sa.Column("changed_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.ForeignKeyConstraint(["actor_user_id"], ["users.id"]),
-        sa.ForeignKeyConstraint(["order_id"], ["orders.id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_order_status_history_order_id", "order_status_history", ["order_id"], unique=False)
+    conn = op.get_bind()
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS order_status_history (
+            id SERIAL PRIMARY KEY,
+            order_id INTEGER NOT NULL REFERENCES orders(id),
+            from_status VARCHAR(32),
+            to_status VARCHAR(32) NOT NULL,
+            reason VARCHAR(300),
+            actor_user_id INTEGER REFERENCES users(id),
+            changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_order_status_history_order_id ON order_status_history (order_id)"
+    ))
 
-    op.create_table(
-        "order_refunds",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("order_id", sa.Integer(), nullable=False),
-        sa.Column("amount", sa.Numeric(10, 2), nullable=False),
-        sa.Column("refund_type", sa.String(length=16), nullable=False),
-        sa.Column("reason", sa.String(length=300), nullable=True),
-        sa.Column("actor_user_id", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.ForeignKeyConstraint(["actor_user_id"], ["users.id"]),
-        sa.ForeignKeyConstraint(["order_id"], ["orders.id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_order_refunds_order_id", "order_refunds", ["order_id"], unique=False)
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS order_refunds (
+            id SERIAL PRIMARY KEY,
+            order_id INTEGER NOT NULL REFERENCES orders(id),
+            amount NUMERIC(10,2) NOT NULL,
+            refund_type VARCHAR(16) NOT NULL,
+            reason VARCHAR(300),
+            actor_user_id INTEGER REFERENCES users(id),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_order_refunds_order_id ON order_refunds (order_id)"
+    ))
 
 
 def downgrade() -> None:

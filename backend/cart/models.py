@@ -13,8 +13,18 @@ class CartItem(Base):
 
     __tablename__ = "cart_items"
     __table_args__ = (
-        UniqueConstraint("user_id", "product_id", name="uq_cart_items_user_product"),
-        UniqueConstraint("session_id", "product_id", name="uq_cart_items_session_product"),
+        UniqueConstraint(
+            "user_id",
+            "product_id",
+            "color_selected",
+            name="uq_cart_items_user_product_color",
+        ),
+        UniqueConstraint(
+            "session_id",
+            "product_id",
+            "color_selected",
+            name="uq_cart_items_session_product_color",
+        ),
         Index("ix_cart_items_session_id", "session_id"),
     )
 
@@ -35,6 +45,12 @@ class CartItem(Base):
         ForeignKey("products.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+
+    color_selected: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
     )
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

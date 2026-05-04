@@ -8,6 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field
 ProductCategory = Literal["premium", "gama media", "economico"]
 
 
+class ProductColorVariant(BaseModel):
+    """Variante de producto por color para detalle visual e inventario."""
+
+    color: str = Field(..., min_length=1, max_length=50)
+    image_url: str | None = Field(default=None, max_length=500)
+    stock: int = Field(..., ge=0)
+
+
 class ProductBase(BaseModel):
     """Campos base compartidos para creación y actualización de productos."""
 
@@ -21,6 +29,7 @@ class ProductBase(BaseModel):
     tamano_memoria_ram: str = Field(..., min_length=1, max_length=50)
     rom: str = Field(..., min_length=1, max_length=50)
     colores_disponibles: list[str] = Field(default_factory=list)
+    color_variants: list[ProductColorVariant] = Field(default_factory=list)
     conectividad: str = Field(..., min_length=1, max_length=120)
     procesador: str = Field(..., min_length=1, max_length=120)
     dimensiones: str = Field(..., min_length=1, max_length=120)
@@ -51,6 +60,7 @@ class ProductUpdate(BaseModel):
     tamano_memoria_ram: str | None = Field(default=None, min_length=1, max_length=50)
     rom: str | None = Field(default=None, min_length=1, max_length=50)
     colores_disponibles: list[str] | None = None
+    color_variants: list[ProductColorVariant] | None = None
     conectividad: str | None = Field(default=None, min_length=1, max_length=120)
     procesador: str | None = Field(default=None, min_length=1, max_length=120)
     dimensiones: str | None = Field(default=None, min_length=1, max_length=120)

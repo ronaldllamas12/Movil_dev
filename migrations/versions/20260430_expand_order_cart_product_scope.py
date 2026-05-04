@@ -17,27 +17,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # orders: cancel metadata
-    op.add_column("orders", sa.Column("cancelled_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("orders", sa.Column("cancellation_reason", sa.String(length=300), nullable=True))
+    conn = op.get_bind()
 
-    # cart_items: anonymous cart support
-    op.add_column("cart_items", sa.Column("session_id", sa.String(length=128), nullable=True))
-    op.alter_column("cart_items", "user_id", existing_type=sa.Integer(), nullable=True)
-    op.create_index("ix_cart_items_session_id", "cart_items", ["session_id"], unique=False)
-    op.create_unique_constraint("uq_cart_items_session_product", "cart_items", ["session_id", "product_id"])
+    # orders: cancel metadata (idempotent)
+    conn.execute(sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ"))
+    conn.execute(sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason VARCHAR(300)"))
 
-    # products: common search index
-    op.create_index("ix_products_search", "products", ["marca", "categoria", "is_active"], unique=False)
+    # cart_items: anonymous cart support (idempotent)
+    conn.execute(sa.text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS session_id VARCHAR(128)"))
+    conn.execute(sa.text("ALTER TABLE cart_items ALTER COLUMN user_id DROP NOT NULL"))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_cart_items_session_id ON cart_items (session_id)"
+    ))
+    conn.execute(sa.text(
+        "DO $$ BEGIN "
+        "IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='uq_cart_items_session_product') THEN "
+        "ALTER TABLE cart_items ADD CONSTRAINT uq_cart_items_session_product UNIQUE (session_id, product_id); "
+        "END IF; END $$"
+    ))
+
+    # products: common search index (idempotent)
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_products_search ON products (marca, categoria, is_active)"
+    ))
 
 
 def downgrade() -> None:
-    op.drop_index("ix_products_search", table_name="products")
-
-    op.drop_constraint("uq_cart_items_session_product", "cart_items", type_="unique")
-    op.drop_index("ix_cart_items_session_id", table_name="cart_items")
-    op.alter_column("cart_items", "user_id", existing_type=sa.Integer(), nullable=False)
-    op.drop_column("cart_items", "session_id")
-
-    op.drop_column("orders", "cancellation_reason")
-    op.drop_column("orders", "cancelled_at")
+    conn = op.get_bind()
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_products_search"))
+    conn.execute(sa.text(
+        "ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS uq_cart_items_session_product"
+    ))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_cart_items_session_id"))
+    conn.execute(sa.text("ALTER TABLE cart_items DROP COLUMN IF EXISTS session_id"))
+    conn.execute(sa.text("ALTER TABLE orders DROP COLUMN IF EXISTS cancellation_reason"))
+    conn.execute(sa.text("ALTER TABLE orders DROP COLUMN IF EXISTS cancelled_at"))

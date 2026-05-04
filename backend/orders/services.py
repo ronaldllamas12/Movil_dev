@@ -3,7 +3,13 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from cart.services import clear_user_cart, compute_cart_totals, list_items_for_user
+from cart.services import (
+    clear_user_cart,
+    compute_cart_totals,
+    decrease_color_variant_stock,
+    list_items_for_user,
+    resolve_color_and_stock_limit,
+)
 from orders.models import (
     Order,
     OrderItem,
@@ -140,10 +146,19 @@ def create_order_from_cart(db: Session, user: User) -> Order:
             raise ConflictError(f"Producto {cart_item.product_id} no disponible.")
         if float(product.precio_unitario) != float(cart_item.price):
             raise ConflictError(f"Precio de producto {product.nombre} ha cambiado.")
-        if product.cantidad_stock < cart_item.quantity:
+        normalized_color, stock_limit = resolve_color_and_stock_limit(
+            product,
+            cart_item.color_selected,
+        )
+        if cart_item.quantity > stock_limit:
+            if normalized_color:
+                raise ConflictError(
+                    f"Stock insuficiente para '{product.nombre}' en color '{normalized_color}'. "
+                    f"Disponible: {stock_limit}, solicitado: {cart_item.quantity}."
+                )
             raise ConflictError(
                 f"Stock insuficiente para '{product.nombre}'. "
-                f"Disponible: {product.cantidad_stock}, solicitado: {cart_item.quantity}."
+                f"Disponible: {stock_limit}, solicitado: {cart_item.quantity}."
             )
         locked_products[cart_item.product_id] = product
         items.append(cart_item)
@@ -157,6 +172,7 @@ def create_order_from_cart(db: Session, user: User) -> Order:
             referencia=getattr(ci, "referencia", ""),
             nombre=getattr(ci, "nombre", ""),
             imagen_url=getattr(ci, "imagen_url", None),
+            color_selected=getattr(ci, "color_selected", None),
             quantity=ci.quantity,
             price=ci.price,
             line_total=ci.price * ci.quantity,
@@ -180,11 +196,16 @@ def create_order_from_cart(db: Session, user: User) -> Order:
             OrderItem(
                 order_id=order.id,
                 product_id=ci.product_id,
+                color_selected=ci.color_selected or None,
                 quantity=ci.quantity,
                 price=ci.price,
             )
         )
-        locked_products[ci.product_id].cantidad_stock -= ci.quantity
+        decrease_color_variant_stock(
+            locked_products[ci.product_id],
+            color_selected=ci.color_selected,
+            quantity=ci.quantity,
+        )
 
     _create_status_history(
         db,
@@ -204,9 +225,13 @@ def _pending_order_matches_cart(order: Order, cart_items: list) -> bool:
     if len(order.items) != len(cart_items):
         return False
 
-    cart_items_by_product = {item.product_id: item for item in cart_items}
+    cart_items_by_product_color = {
+        (item.product_id, (item.color_selected or "").strip().lower()): item
+        for item in cart_items
+    }
     for order_item in order.items:
-        cart_item = cart_items_by_product.get(order_item.product_id)
+        key = (order_item.product_id, (order_item.color_selected or "").strip().lower())
+        cart_item = cart_items_by_product_color.get(key)
         if not cart_item:
             return False
         if order_item.quantity != cart_item.quantity:
