@@ -9,6 +9,7 @@ import Catalogo from './components/Catalogo';
 import Categories from './components/categories';
 import CheckoutSteps from './components/CheckoutSteps';
 import ContactBanner from './components/ContactBanner';
+import EpaycoCheckoutWindow from './components/EpaycoCheckoutWindow';
 import Features from './components/Features';
 import Footer from './components/Footer';
 import Hero from './components/Hero';
@@ -155,6 +156,7 @@ function App() {
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/carrito" element={<Carrito />} />
           <Route path="/checkout-steps" element={<CheckoutSteps currentUser={currentUser} />} />
+          <Route path="/checkout/epayco" element={<EpaycoCheckoutWindow />} />
           <Route path="/success" element={<Success />} />
           <Route path="/cancel" element={<Cancel />} />
         </Routes>

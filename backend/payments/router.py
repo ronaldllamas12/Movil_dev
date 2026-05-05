@@ -5,10 +5,10 @@ import requests
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from orders.services import mark_order_paid, update_order_status
 from payments.schemas import (CheckoutCustomerData, EpaycoSessionResponse,
-                              PayPalCaptureResponse, PayPalCreateOrderResponse)
+                            PayPalCaptureResponse, PayPalCreateOrderResponse)
 from payments.services import (_paypal_access_token, _paypal_api_base,
-                               capture_paypal_order, create_epayco_session,
-                               create_paypal_order)
+                            capture_paypal_order, create_epayco_session,
+                            create_paypal_order)
 from sqlalchemy.orm import Session
 from users.models import User
 

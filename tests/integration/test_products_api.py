@@ -10,11 +10,15 @@ def test_public_can_list_filter_and_get_products(client, make_product):
 
     list_response = client.get("/products")
     assert list_response.status_code == 200
-    assert len(list_response.json()) == 2
+    body = list_response.json()
+    assert body["total"] == 2
+    assert len(body["items"]) == 2
 
     filtered_response = client.get("/products", params={"categoria": "premium"})
     assert filtered_response.status_code == 200
-    assert [product["id"] for product in filtered_response.json()] == [premium.id]
+    filtered_body = filtered_response.json()
+    assert filtered_body["total"] == 1
+    assert [product["id"] for product in filtered_body["items"]] == [premium.id]
 
     detail_response = client.get(f"/products/{premium.id}")
     assert detail_response.status_code == 200

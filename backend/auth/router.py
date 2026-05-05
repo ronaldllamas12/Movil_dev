@@ -1,5 +1,7 @@
 """Rutas de autenticación."""
 
+import os
+
 from auth.dependencies import get_current_admin, get_current_user
 from auth.email_service import send_password_reset_email
 from auth.schemas import (
@@ -25,7 +27,7 @@ from auth.services import (
     set_user_password,
 )
 from cloudinary_utils import upload_image_to_cloudinary
-from fastapi import APIRouter, Depends, File, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 from users.constants import UserRole
 from users.models import User
@@ -35,6 +37,32 @@ from database.core.database import get_db
 from database.core.errors import ForbiddenError, UnauthorizedError
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+AUTH_COOKIE_NAME = "access_token"
+_COOKIE_MAX_AGE = int(os.getenv("APP_JWT_EXPIRATION", "3600"))
+
+
+def _set_auth_cookie(request: Request, response: Response, token: str) -> None:
+    """Establece la cookie httpOnly con el token JWT."""
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    secure = request.url.scheme == "https" or "https" in forwarded_proto.lower()
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        max_age=_COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=secure,
+        path="/",
+    )
+
+
+def _clear_auth_cookie(response: Response) -> None:
+    """Elimina la cookie de autenticación."""
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        path="/",
+    )
 
 
 @router.post(
@@ -82,13 +110,19 @@ def admin_register_user(
 
 # LOGIN
 @router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
-    """Autentica usuario y retorna JWT."""
+def login(
+    payload: UserLogin,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Autentica usuario, retorna JWT y establece cookie httpOnly."""
     if payload.email.strip() == "" or payload.password.strip() == "":
         raise UnauthorizedError("Email y contraseña no pueden estar vacíos.")
 
     user = authenticate_user(db, payload.email, payload.password)
     token, _, _ = create_token_for_user(user)
+    _set_auth_cookie(request, response, token)
 
     return TokenResponse(
         access_token=token,
@@ -97,10 +131,16 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/google", response_model=TokenResponse)
-def login_with_google(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
-    """Autentica un usuario usando Google OAuth y retorna JWT propio."""
+def login_with_google(
+    payload: GoogleLoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Autentica un usuario usando Google OAuth, retorna JWT y establece cookie httpOnly."""
     user = authenticate_google_user(db, payload.id_token)
     token, _, _ = create_token_for_user(user)
+    _set_auth_cookie(request, response, token)
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user, from_attributes=True),
@@ -201,21 +241,22 @@ def update_my_shipping_profile(
 @router.post("/logout")
 def logout(
     request: Request,
+    response: Response,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Revoca el token actual."""
-
-    # Obtener token desde header
-    token = request.headers.get("Authorization")
+    """Revoca el token actual y limpia la cookie de autenticación."""
+    # Obtener token desde header o cookie
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        token = request.cookies.get(AUTH_COOKIE_NAME, "")
 
     if not token:
         raise UnauthorizedError("Token no proporcionado.")
 
-    token = token.replace("Bearer ", "")
-
     jti, exp = extract_token_data(token)
-
     revoke_token(db, jti, exp)
+    _clear_auth_cookie(response)
 
     return {"message": "Sesión cerrada correctamente"}

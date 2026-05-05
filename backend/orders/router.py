@@ -1,9 +1,9 @@
-﻿from pathlib import Path
-from typing import List
+﻿from typing import List
 
 from auth.dependencies import get_current_admin, get_current_user
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import FileResponse
+from orders.path_utils import resolve_invoice_pdf_path
 from orders.models import Order, OrderRefund, OrderStatus
 from orders.schemas import (
     CancelOrderRequest,
@@ -187,13 +187,13 @@ def download_order_invoice_admin(
         db.commit()
         db.refresh(order)
 
-    base_dir = Path(__file__).parent.parent.parent.resolve()
-    invoices_dir = base_dir / "generated" / "invoices"
-    pdf_path = Path(order.invoice_pdf_path)
-    if not pdf_path.is_absolute() or invoices_dir not in pdf_path.parents:
-        pdf_path = invoices_dir / pdf_path.name
-    if not pdf_path.exists() or not pdf_path.is_file():
+    pdf_path = resolve_invoice_pdf_path(order.invoice_pdf_path)
+    if pdf_path is None or not pdf_path.exists() or not pdf_path.is_file():
         pdf_path = ensure_order_invoice_pdf(db, order)
+        db.commit()
+        db.refresh(order)
+    elif str(pdf_path.resolve()) != (order.invoice_pdf_path or ""):
+        order.invoice_pdf_path = str(pdf_path.resolve())
         db.commit()
         db.refresh(order)
 

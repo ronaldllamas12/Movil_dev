@@ -92,6 +92,15 @@ class ProductResponse(ProductBase):
     updated_at: datetime | None = None
 
 
+class PaginatedProductResponse(BaseModel):
+    """Respuesta paginada para listado de productos."""
+
+    items: list[ProductResponse]
+    total: int
+    skip: int
+    limit: int
+
+
 class ProductImageUploadResponse(BaseModel):
     """Respuesta de subida de imagen de producto."""
 

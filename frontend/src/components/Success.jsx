@@ -12,6 +12,7 @@ export default function Success() {
   const { limpiarCarrito } = useCarrito();
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const processedPaymentRef = useRef(false);
 
@@ -43,6 +44,7 @@ export default function Success() {
         || responseText.includes('rechaz')
         || responseText.includes('fall')
         || responseText.includes('cancel');
+      const isPending = responseCode === '3' || responseText.includes('pend');
       const isApproved = !hasExplicitFailure && (
         !responseCode ||
         responseCode === '1' ||
@@ -55,6 +57,10 @@ export default function Success() {
         }
         localStorage.removeItem('pending_checkout_order_id');
         setSuccess(true);
+        await limpiarCarrito();
+      } else if (isPending) {
+        localStorage.removeItem('pending_checkout_order_id');
+        setPending(true);
         await limpiarCarrito();
       } else {
         setError('El pago no fue aprobado. Puedes intentar nuevamente desde el carrito.');
@@ -120,6 +126,18 @@ export default function Success() {
               <h1 className="text-3xl font-bold text-[color:var(--text)]">Pago exitoso</h1>
               <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
                 Tu compra fue confirmada correctamente. Te llevamos de vuelta a la tienda sin mostrar factura externa.
+              </p>
+            </>
+          )}
+
+          {!loading && pending && (
+            <>
+              <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                <Loader2 className="size-8 animate-spin" />
+              </div>
+              <h1 className="text-3xl font-bold text-[color:var(--text)]">Pago en validación</h1>
+              <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+                ePayco reportó la transacción como pendiente. Vaciamos tu carrito y actualizaremos la orden cuando el pago sea confirmado.
               </p>
             </>
           )}

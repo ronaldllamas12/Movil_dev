@@ -1,13 +1,24 @@
+"""Generación de PDF para facturas de pedidos.
+
+Este módulo se ocupa exclusivamente de la representación gráfica de la factura.
+Las responsabilidades de resolución de rutas y envío de email están en módulos separados:
+  - path_utils.py  → get_invoices_dir(), resolve_invoice_pdf_path()
+  - email_service.py → send_invoice_email()
+"""
 
 from __future__ import annotations
-import os
-from pathlib import Path
-import smtplib
-from email.message import EmailMessage
-# Genera el PDF de la factura y retorna la ruta al archivo generado
+
+# Re-exports para compatibilidad con código existente
+from orders.path_utils import get_invoices_dir, resolve_invoice_pdf_path  # noqa: F401
+from orders.email_service import send_invoice_email  # noqa: F401
+
+
+# ---------------------------------------------------------------------------
+# Generación de PDF
+# ---------------------------------------------------------------------------
+
 def generate_invoice_pdf(db, order):
-    # Aquí deberías construir el diccionario 'invoice' y el buffer QR según tu lógica de negocio
-    # Por ahora, se asume que existen funciones auxiliares para esto
+    """Arma el PDF de la factura a partir de los datos de la orden."""
     invoice = order.to_invoice_dict() if hasattr(order, 'to_invoice_dict') else {}
     import qrcode
     from io import BytesIO
@@ -16,74 +27,16 @@ def generate_invoice_pdf(db, order):
     qr = qrcode.make(qr_data)
     qr.save(qr_buffer, format="PNG")
     qr_buffer.seek(0)
-    # Siempre usar la ruta absoluta desde la raíz del proyecto en generated/invoices
-    base_dir = Path(__file__).parent.parent.parent.resolve()
-    invoices_dir = base_dir / "generated" / "invoices"
-    invoices_dir.mkdir(parents=True, exist_ok=True)
+    invoices_dir = get_invoices_dir()
     pdf_path = invoices_dir / f"invoice_{order.id}.pdf"
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     render_invoice_pdf(pdf_path=pdf_path, invoice=invoice, qr_buffer=qr_buffer)
     return pdf_path
 
-# Envía la factura por correo electrónico usando SMTP (Gmail por defecto)
-def send_invoice_email(recipient_email, invoice_pdf_path, order):
-    try:
-        smtp_provider = os.getenv("SMTP_PROVIDER", "gmail").strip().lower()
-        default_host = "smtp.gmail.com" if smtp_provider == "gmail" else "localhost"
-        default_port = 587
 
-        smtp_host = os.getenv("SMTP_HOST_GMAIL", default_host).strip()
-        smtp_port = int(os.getenv("SMTP_PORT", default_port))
-        smtp_user = os.getenv("SMTP_USER_GMAIL", "").strip()
-        smtp_pass = (
-            os.getenv("SMTP_PASSWORD_GMAIL", "").strip()
-            or os.getenv("GMAIL_APP_PASSWORD", "").strip()
-        )
-        mail_from = os.getenv("MAIL_FROM_GMAIL", smtp_user or "no-reply@movildev.com").strip()
-        mail_from_name = os.getenv("MAIL_FROM_NAME", "Movil Dev").strip()
-
-        if not smtp_user or not smtp_pass:
-            print(
-                "[EMAIL ERROR] Faltan credenciales SMTP_USER/SMTP_PASSWORD "
-                "(o GMAIL_APP_PASSWORD para Gmail)."
-            )
-            return False
-
-        if "gmail.com" in smtp_host and mail_from.lower() != smtp_user.lower():
-            print(
-                "[EMAIL WARN] Con Gmail, MAIL_FROM deberia coincidir con SMTP_USER "
-                "para evitar bloqueos por politica del proveedor."
-            )
-
-        msg = EmailMessage()
-        msg["Subject"] = f"Factura de tu pedido #{order.id} - Movil Dev"
-        msg["From"] = f"{mail_from_name} <{mail_from}>"
-        msg["To"] = recipient_email
-        msg.set_content(
-            f"Hola,\n\n"
-            f"Adjuntamos la factura de tu pedido #{order.id}.\n"
-            f"¡Gracias por tu compra en Movil Dev!\n\n"
-            f"Si tienes alguna pregunta, responde a este correo.\n\n"
-            f"Equipo Movil Dev"
-        )
-        with open(invoice_pdf_path, "rb") as f:
-            msg.add_attachment(
-                f.read(),
-                maintype="application",
-                subtype="pdf",
-                filename=f"factura_pedido_{order.id}.pdf",
-            )
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_user, smtp_pass)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"[EMAIL ERROR] No se pudo enviar la factura: {e}")
-        return False
-"""Plantilla PDF para la representacion grafica de factura."""
+# ---------------------------------------------------------------------------
+# Renderizado ReportLab
+# ---------------------------------------------------------------------------
 
 from io import BytesIO
 from pathlib import Path
@@ -466,3 +419,18 @@ def render_invoice_pdf(
     doc.build(story)
     print(f"[DEBUG] PDF generado correctamente: {pdf_path}")
     return pdf_path
+
+
+# ---------------------------------------------------------------------------
+# Implementación concreta de InvoiceGenerator (DIP — Task 9)
+# ---------------------------------------------------------------------------
+
+from orders.interfaces import InvoiceGenerator  # noqa: E402
+from sqlalchemy.orm import Session as _Session  # noqa: E402
+
+
+class ReportLabInvoiceGenerator(InvoiceGenerator):
+    """Implementación de InvoiceGenerator usando ReportLab."""
+
+    def generate(self, db: _Session, order) -> Path:
+        return generate_invoice_pdf(db, order)

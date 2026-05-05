@@ -1,10 +1,10 @@
 // components/ProductCard.jsx
 import { Eye, ShoppingCart, Star } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useCarrito } from '../context/CarritoContext';
 import ProductDetailModal from './ProductDetailModal';
 
-export default function ProductCard({ product }) {
+function ProductCard({ product }) {
   const { agregarAlCarrito } = useCarrito();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const stock = Number(product.cantidad_stock || 0);
@@ -91,3 +91,5 @@ export default function ProductCard({ product }) {
     </>
   );
 }
+
+export default memo(ProductCard);

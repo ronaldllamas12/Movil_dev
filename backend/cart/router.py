@@ -23,9 +23,11 @@ from cart.services import (
     compute_cart_totals,
     get_or_create_cart_settings,
     get_product_for_cart,
+    get_shipping_fee,
     list_items_for_user,
     remove_item_for_user,
     resolve_color_and_stock_limit,
+    safe_float,
     set_cart_tax_percent,
 )
 from fastapi import APIRouter, Depends, Request, Response, status
@@ -34,19 +36,12 @@ from sqlalchemy.orm import Session
 from users.models import User
 
 from database.core.database import get_db
-from database.core.errors import ConflictError, NotFoundError
+from database.core.errors import ConflictError
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 COOKIE_NAME = "guest_cart"
 COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
-
-
-def _safe_float(value: str | None, default: float) -> float:
-    try:
-        return float(value) if value is not None else default
-    except ValueError:
-        return default
 
 
 def _safe_int(value: str | None, default: int) -> int:
@@ -69,29 +64,13 @@ def _safe_bool(value: str | None, default: bool) -> bool:
 
 
 def _get_cart_tax_percent() -> float:
-    return max(0.0, min(100.0, _safe_float(os.getenv("CART_TAX_PERCENT"), 19.0)))
+    return max(0.0, min(100.0, safe_float(os.getenv("CART_TAX_PERCENT"), 19.0)))
 
 
 def _get_persistent_tax_percent(db: Session) -> float:
     env_default = _get_cart_tax_percent()
     settings = get_or_create_cart_settings(db, default_tax_percent=env_default)
     return float(settings.tax_percent)
-
-
-def _get_shipping_fee(*, subtotal: float, item_count: int) -> float:
-    mode = os.getenv("CART_SHIPPING_MODE", "fixed").strip().lower()
-    free_from = _safe_float(os.getenv("CART_FREE_SHIPPING_FROM"), -1)
-
-    if free_from >= 0 and subtotal >= free_from:
-        return 0.0
-
-    if mode == "dynamic":
-        dynamic_per_item = max(
-            0.0, _safe_float(os.getenv("CART_SHIPPING_DYNAMIC_PER_ITEM"), 0.0)
-        )
-        return dynamic_per_item * item_count
-
-    return max(0.0, _safe_float(os.getenv("CART_SHIPPING_FIXED_FEE"), 0.0))
 
 
 def _parse_guest_cart(request: Request) -> list[dict[str, Any]]:
@@ -373,9 +352,6 @@ def remove_from_cart(
     guest_items = _parse_guest_cart(request)
     next_items = [item for item in guest_items if item["product_id"] != item_id]
 
-    if len(next_items) == len(guest_items):
-        raise NotFoundError("Ítem de carrito no encontrado.")
-
     _set_guest_cart_cookie(response, next_items)
 
 
@@ -392,7 +368,7 @@ def get_cart_total(
         normalized_items = _build_items_for_authenticated(db, current_user.id)
 
         subtotal = sum(i.line_total for i in normalized_items)
-        shipping_fee = _get_shipping_fee(
+        shipping_fee = get_shipping_fee(
             subtotal=subtotal,
             item_count=sum(i.quantity for i in normalized_items),
         )
@@ -406,7 +382,7 @@ def get_cart_total(
     normalized_guest_items = _build_items_for_guest(db, request)
 
     subtotal = sum(i.line_total for i in normalized_guest_items)
-    shipping_fee = _get_shipping_fee(
+    shipping_fee = get_shipping_fee(
         subtotal=subtotal,
         item_count=sum(i.quantity for i in normalized_guest_items),
     )

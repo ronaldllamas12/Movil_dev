@@ -29,6 +29,8 @@ from core.settings import Settings
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from database.core.database import get_engine
 from database.core.errors import (AppError, ConflictError, ForbiddenError,NotFoundError, UnauthorizedError)
@@ -61,6 +63,24 @@ app.middleware("http")(ensure_cors_headers_middleware)
 def read_root():
     """Ruta raíz para verificar que la API está funcionando."""
     return {"message": "¡Bienvenido a la API de Autenticación!"}
+
+
+@app.get("/health")
+def health_check():
+    """Health check para monitoreo y probes de infraestructura."""
+    try:
+        with get_engine().connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "ok"}
+    except SQLAlchemyError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "database": "unavailable",
+                "detail": str(exc.__class__.__name__),
+            },
+        )
 
 
 def _error_response(status_code: int, exc: AppError) -> JSONResponse:

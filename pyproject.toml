@@ -11,3 +11,8 @@ disable = [
     "missing-function-docstring",
     "missing-class-docstring"
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    'ignore:.*asyncio\.iscoroutinefunction.*:DeprecationWarning',
+]

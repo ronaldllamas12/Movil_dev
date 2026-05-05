@@ -12,6 +12,7 @@ function resolveApiBaseUrl() {
     const currentOrigin = window.location.origin;
     const currentHost = window.location.host;
     const currentHostname = window.location.hostname;
+    const currentPort = window.location.port;
 
     if (
       normalized === currentOrigin ||
@@ -19,6 +20,14 @@ function resolveApiBaseUrl() {
       normalized === currentHostname ||
       normalized === `${currentHostname}:${window.location.port}`
     ) {
+      return '/api';
+    }
+
+    // Si el env apunta a loopback con el mismo puerto del frontend,
+    // también forzamos proxy local para mantener una sola "site" de cookies.
+    const localLike = normalized.replace(/^https?:\/\//, '').toLowerCase();
+    const isLocalFrontendHost = localLike.startsWith('localhost:') || localLike.startsWith('127.0.0.1:');
+    if (isLocalFrontendHost && localLike.endsWith(`:${currentPort}`)) {
       return '/api';
     }
   }
@@ -37,6 +46,7 @@ function resolveApiBaseUrl() {
 const apiClient = axios.create({
   baseURL: resolveApiBaseUrl(),
   timeout: 15000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -44,11 +54,10 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
-
-  if (token) {
+  if (token && !config.headers?.Authorization) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 

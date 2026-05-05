@@ -1,5 +1,6 @@
 """Servicios de negocio para carrito de compras."""
 
+import os
 from dataclasses import dataclass
 
 from cart.models import CartItem, CartSettings
@@ -9,6 +10,32 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.core.errors import ConflictError, NotFoundError
+
+
+def safe_float(value: str | None, default: float) -> float:
+    """Convierte un string a float con un valor por defecto seguro."""
+    try:
+        return float(value) if value is not None else default
+    except ValueError:
+        return default
+
+
+def get_shipping_fee(*, subtotal: float, item_count: int) -> float:
+    """Calcula el costo de envío según la configuración de variables de entorno."""
+    mode = os.getenv("CART_SHIPPING_MODE", "fixed").strip().lower()
+    free_from = safe_float(os.getenv("CART_FREE_SHIPPING_FROM"), -1)
+
+    if free_from >= 0 and subtotal >= free_from:
+        return 0.0
+
+    if mode == "dynamic":
+        dynamic_per_item = max(
+            0.0, safe_float(os.getenv("CART_SHIPPING_DYNAMIC_PER_ITEM"), 0.0)
+        )
+        return dynamic_per_item * item_count
+
+    return max(0.0, safe_float(os.getenv("CART_SHIPPING_FIXED_FEE"), 0.0))
+
 
 
 def normalize_color_selected(color_selected: str | None) -> str:

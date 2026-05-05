@@ -27,7 +27,16 @@ def create_test_db() -> Session:
     engine = create_engine("sqlite:///:memory:")
     TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     Base.metadata.create_all(bind=engine)
-    return TestingSessionLocal()
+    db = TestingSessionLocal()
+    db.info["_engine"] = engine
+    return db
+
+
+def close_test_db(db: Session) -> None:
+    engine = db.info.get("_engine")
+    db.close()
+    if engine is not None:
+        engine.dispose()
 
 
 def test_register_and_authenticate_user():
@@ -51,7 +60,7 @@ def test_register_and_authenticate_user():
         assert authenticated.preferences == {}
         assert authenticated.saved_articles == []
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_reset_password_flow():
@@ -73,7 +82,7 @@ def test_reset_password_flow():
         assert authenticated.email == "reset@example.com"
         assert authenticated.auth_provider == "local"
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_google_user_debe_agregar_password_antes_local_login(monkeypatch):
@@ -103,7 +112,7 @@ def test_google_user_debe_agregar_password_antes_local_login(monkeypatch):
         assert authenticated.google_sub == "google-user-1"
         assert authenticated.saved_articles == []
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_google_login_links_existing_local_account(monkeypatch):
@@ -135,7 +144,7 @@ def test_google_login_links_existing_local_account(monkeypatch):
         assert linked_user.avatar_url == "https://example.com/pic.png"
         assert linked_user.role == UserRole.USER.value
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_get_current_admin_permite_administrador():

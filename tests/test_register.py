@@ -1,7 +1,7 @@
 """Script para probar el endpoint de registro."""
 
-import requests
 import json
+import requests
 
 # URL del endpoint
 BASE_URL = "http://localhost:8000"
@@ -55,26 +55,31 @@ test_cases = [
     }
 ]
 
-print("Pruebando el endpoint de registro...\n")
-print("=" * 80)
+def run_manual_register_smoke() -> None:
+    print("Pruebando el endpoint de registro...\n")
+    print("=" * 80)
 
-for test in test_cases:
-    print(f"\n📋 {test['name']}")
-    print(f"Datos enviados: {json.dumps(test['data'], indent=2)}")
-    print("-" * 80)
-    
-    try:
-        response = requests.post(REGISTER_URL, json=test['data'])
-        print(f"Status Code: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-    except Exception as e:
-        print(f"Error: {str(e)}")
-    
-    print()
+    for test in test_cases:
+        print(f"\n📋 {test['name']}")
+        print(f"Datos enviados: {json.dumps(test['data'], indent=2)}")
+        print("-" * 80)
 
-print("=" * 80)
-print("\n✅ Validaciones requeridas:")
-print("- email: Debe ser un email válido (ej: usuario@example.com)")
-print("- password: Mínimo 8 caracteres")
-print("- full_name: Mínimo 2 caracteres, máximo 200")
-print("- role: Debe ser 'usuario' (por defecto) para registro público")
+        try:
+            response = requests.post(REGISTER_URL, json=test['data'], timeout=10)
+            print(f"Status Code: {response.status_code}")
+            print(f"Response: {json.dumps(response.json(), indent=2)}")
+        except Exception as e:
+            print(f"Error: {str(e)}")
+
+        print()
+
+    print("=" * 80)
+    print("\n✅ Validaciones requeridas:")
+    print("- email: Debe ser un email válido (ej: usuario@example.com)")
+    print("- password: Mínimo 8 caracteres")
+    print("- full_name: Mínimo 2 caracteres, máximo 200")
+    print("- role: Debe ser 'usuario' (por defecto) para registro público")
+
+
+if __name__ == "__main__":
+    run_manual_register_smoke()

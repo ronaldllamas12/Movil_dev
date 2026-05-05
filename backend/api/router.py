@@ -1,4 +1,4 @@
-"""Router composition for the main FastAPI application."""
+"""composicion de rutas para la aplicacion de main."""
 
 from auth.router import router as auth_router
 from cart.router import router as cart_router

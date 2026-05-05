@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../api/axiosClient";
 import { updateShippingProfile } from "../api/services/authService";
 import {
-    createEpaycoSession,
-    createPayPalOrder,
+  createEpaycoSession,
+  createPayPalOrder,
 } from "../api/services/paymentService";
 import { useCarrito } from "../context/CarritoContext";
 
@@ -100,29 +100,6 @@ export default function CheckoutSteps({ currentUser }) {
     frontend_origin: window.location.origin,
   });
 
-  const loadEpaycoScript = () =>
-    new Promise((resolve, reject) => {
-      if (window.ePayco?.checkout) {
-        resolve();
-        return;
-      }
-
-      const currentScript = document.getElementById("epayco-checkout-v2-script");
-      if (currentScript) {
-        currentScript.addEventListener("load", resolve, { once: true });
-        currentScript.addEventListener("error", reject, { once: true });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.id = "epayco-checkout-v2-script";
-      script.src = "https://checkout.epayco.co/checkout-v2.js";
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.body.appendChild(script);
-    });
-
   const handlePayPal = async () => {
     setLoadingProvider("paypal");
     setError("");
@@ -133,7 +110,12 @@ export default function CheckoutSteps({ currentUser }) {
         if (data.db_order_id) {
           localStorage.setItem("pending_checkout_order_id", String(data.db_order_id));
         }
-        window.location.href = data.url;
+        const paymentWindow = window.open(data.url, "_blank", "noopener,noreferrer");
+        if (!paymentWindow) {
+          setError("Tu navegador bloqueo la nueva pestaña. Habilita popups para continuar con el pago.");
+          setLoadingProvider("");
+          return;
+        }
         return;
       }
 
@@ -148,28 +130,31 @@ export default function CheckoutSteps({ currentUser }) {
   const handleEpayco = async () => {
     setLoadingProvider("epayco");
     setError("");
+
+    const checkoutWindow = window.open("about:blank", "_blank");
+    if (!checkoutWindow) {
+      setError("Tu navegador bloqueo la nueva pestaña. Habilita popups para continuar con el pago.");
+      setLoadingProvider("");
+      return;
+    }
+
     try {
-      await loadEpaycoScript();
       const session = await createEpaycoSession(buildCheckoutPayload());
       if (session.db_order_id) {
         localStorage.setItem("pending_checkout_order_id", String(session.db_order_id));
       }
 
-      const checkout = window.ePayco.checkout.configure({
-        sessionId: session.session_id,
-        type: "onpage",
-        test: import.meta.env.VITE_EPAYCO_TEST !== "false",
-      });
+      const sessionId = session.session_id || session.sessionId;
+      if (!sessionId) {
+        throw new Error("No se pudo obtener el identificador de sesion de ePayco.");
+      }
 
-      checkout.onCreated?.(() => setLoadingProvider(""));
-      checkout.onErrors?.((errors) => {
-        console.error("Error ePayco:", errors);
-        setError("ePayco no pudo abrir el checkout. Intenta nuevamente.");
-        setLoadingProvider("");
-      });
-      checkout.onClosed?.(() => setLoadingProvider(""));
-      checkout.open();
+      const isTest = import.meta.env.VITE_EPAYCO_TEST !== "false" ? "1" : "0";
+      const nextUrl = `/checkout/epayco?session_id=${encodeURIComponent(sessionId)}&test=${isTest}`;
+      checkoutWindow.location.assign(nextUrl);
+      setLoadingProvider("");
     } catch (err) {
+      checkoutWindow.close();
       setError(getApiErrorMessage(err));
       setLoadingProvider("");
     }

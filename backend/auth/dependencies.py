@@ -1,7 +1,7 @@
 """Módulo de dependencias de autenticación para FastAPI."""
 
 from auth.services import is_token_revoked
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from users.constants import UserRole
@@ -12,17 +12,38 @@ from database.core.errors import ForbiddenError, NotFoundError, UnauthorizedErro
 from database.core.security import decode_token, is_jwt_error
 
 # USUARIO ACTUAL (DEPENDENCY)
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 optional_security = HTTPBearer(auto_error=False)
+
+AUTH_COOKIE_NAME = "access_token"
+
+
+def _extract_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
+    *,
+    required: bool = True,
+) -> str | None:
+    """Extrae el token JWT desde el header Authorization o la cookie httpOnly."""
+    if credentials and credentials.credentials:
+        return credentials.credentials
+
+    cookie_token = request.cookies.get(AUTH_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+
+    if required:
+        raise UnauthorizedError("Token no proporcionado.")
+    return None
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db),
 ):
     """Dependency para obtener el usuario autenticado a partir del token JWT en la request."""
-    token = credentials.credentials
-    # Extrae el token del esquema Bearer
+    token = _extract_token(request, credentials, required=True)
 
     if not token:
         raise UnauthorizedError("Token no proporcionado.")
@@ -62,14 +83,14 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 def get_optional_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
     db: Session = Depends(get_db),
 ) -> User | None:
     """Obtiene el usuario autenticado si existe token válido, de lo contrario None."""
-    if credentials is None or not credentials.credentials:
+    token = _extract_token(request, credentials, required=False)
+    if not token:
         return None
-
-    token = credentials.credentials
 
     try:
         payload = decode_token(token)

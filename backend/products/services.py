@@ -78,6 +78,17 @@ def list_products(db: Session, skip: int = 0, limit: int = 100, categoria: str |
     return list(db.scalars(stmt).all())
 
 
+def count_products(db: Session, categoria: str | None = None) -> int:
+    """Cuenta el total de productos con filtro opcional por categoría."""
+    from sqlalchemy import func
+
+    stmt = select(func.count()).select_from(Product)
+    if categoria:
+        categoria = categoria.strip().lower()
+        stmt = stmt.where(Product.categoria == categoria)
+    return db.scalar(stmt) or 0
+
+
 def get_product_by_id(db: Session, product_id: int) -> Product:
     """Obtiene un producto por ID o lanza NotFoundError."""
     product = db.get(Product, product_id)
