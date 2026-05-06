@@ -22,10 +22,11 @@ export async function updateCartTaxSettings(taxPercent) {
   return response.data;
 }
 
-export async function addToCart(productId, quantity = 1) {
+export async function addToCart(productId, quantity = 1, colorSelected = null) {
   const response = await apiClient.post('/cart/add', {
     product_id: productId,
     quantity,
+    color_selected: colorSelected,
   });
   return response.data;
 }

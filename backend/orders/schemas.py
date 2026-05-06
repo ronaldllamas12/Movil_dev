@@ -9,6 +9,7 @@ class OrderItemSchema(BaseModel):
 
     id: int
     product_id: int
+    color_selected: str | None = None
     quantity: int
     price: float
 

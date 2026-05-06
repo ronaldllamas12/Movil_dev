@@ -155,6 +155,12 @@ def ensure_products_new_columns(engine: Engine) -> None:
             "ADD COLUMN categoria VARCHAR(20) NOT NULL DEFAULT 'economico'"
         )
 
+    if "color_variants" not in columns:
+        statements.append(
+            "ALTER TABLE products "
+            "ADD COLUMN color_variants JSONB NOT NULL DEFAULT '[]'::jsonb"
+        )
+
     if not statements:
         return
 
@@ -202,6 +208,14 @@ def ensure_orders_invoice_columns(engine: Engine) -> None:
         for stmt in statements:
             connection.execute(text(stmt))
 
+    if "order_items" in inspector.get_table_names():
+        item_columns = {column["name"] for column in inspector.get_columns("order_items")}
+        if "color_selected" not in item_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE order_items ADD COLUMN color_selected VARCHAR(50)")
+                )
+
 
 def ensure_cart_items_session_column(engine: Engine) -> None:
     """Agrega la columna session_id a cart_items si no existe, y hace user_id nullable."""
@@ -218,11 +232,54 @@ def ensure_cart_items_session_column(engine: Engine) -> None:
                 text("ALTER TABLE cart_items ADD COLUMN session_id VARCHAR(128)")
             )
 
+    if "color_selected" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE cart_items ADD COLUMN color_selected VARCHAR(50) NOT NULL DEFAULT ''")
+            )
+
     # Make user_id nullable to support anonymous cart sessions
     with engine.begin() as connection:
         try:
             connection.execute(
                 text("ALTER TABLE cart_items ALTER COLUMN user_id DROP NOT NULL")
+            )
+        except Exception:
+            pass
+
+    with engine.begin() as connection:
+        try:
+            connection.execute(
+                text("ALTER TABLE cart_items DROP CONSTRAINT uq_cart_items_user_product")
+            )
+        except Exception:
+            pass
+
+        try:
+            connection.execute(
+                text("ALTER TABLE cart_items DROP CONSTRAINT uq_cart_items_session_product")
+            )
+        except Exception:
+            pass
+
+        try:
+            connection.execute(
+                text(
+                    "ALTER TABLE cart_items "
+                    "ADD CONSTRAINT uq_cart_items_user_product_color "
+                    "UNIQUE (user_id, product_id, color_selected)"
+                )
+            )
+        except Exception:
+            pass
+
+        try:
+            connection.execute(
+                text(
+                    "ALTER TABLE cart_items "
+                    "ADD CONSTRAINT uq_cart_items_session_product_color "
+                    "UNIQUE (session_id, product_id, color_selected)"
+                )
             )
         except Exception:
             pass

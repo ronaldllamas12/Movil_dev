@@ -30,7 +30,10 @@ export default function Checkout() {
       if (!res.ok) throw new Error("Error al crear la orden");
       const data = await res.json();
       if (!data.url) throw new Error("No se recibió URL de PayPal");
-      window.location.href = data.url;
+      const paymentWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (!paymentWindow) {
+        throw new Error('Tu navegador bloqueó la nueva pestaña. Habilita popups para continuar.');
+      }
     } catch (err) {
       setError(err.message || "Error desconocido");
       setLoading(false);

@@ -18,6 +18,7 @@ venv/
 
 # Archivos generados por la app
 backend/generated/
+generated/invoices/*.pdf
 
 # Coverage
 .coverage

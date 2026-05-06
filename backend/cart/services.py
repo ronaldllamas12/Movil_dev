@@ -1,5 +1,6 @@
 """Servicios de negocio para carrito de compras."""
 
+import os
 from dataclasses import dataclass
 
 from cart.models import CartItem, CartSettings
@@ -9,6 +10,107 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.core.errors import ConflictError, NotFoundError
+
+
+def safe_float(value: str | None, default: float) -> float:
+    """Convierte un string a float con un valor por defecto seguro."""
+    try:
+        return float(value) if value is not None else default
+    except ValueError:
+        return default
+
+
+def get_shipping_fee(*, subtotal: float, item_count: int) -> float:
+    """Calcula el costo de envío según la configuración de variables de entorno."""
+    mode = os.getenv("CART_SHIPPING_MODE", "fixed").strip().lower()
+    free_from = safe_float(os.getenv("CART_FREE_SHIPPING_FROM"), -1)
+
+    if free_from >= 0 and subtotal >= free_from:
+        return 0.0
+
+    if mode == "dynamic":
+        dynamic_per_item = max(
+            0.0, safe_float(os.getenv("CART_SHIPPING_DYNAMIC_PER_ITEM"), 0.0)
+        )
+        return dynamic_per_item * item_count
+
+    return max(0.0, safe_float(os.getenv("CART_SHIPPING_FIXED_FEE"), 0.0))
+
+
+
+def normalize_color_selected(color_selected: str | None) -> str:
+    """Normaliza el color seleccionado para persistencia y validación."""
+    return (color_selected or "").strip()
+
+
+def resolve_color_and_stock_limit(product: Product, color_selected: str | None) -> tuple[str, int]:
+    """Resuelve el color elegido y el stock permitido para ese color."""
+    normalized_color = normalize_color_selected(color_selected)
+    variants = getattr(product, "color_variants", None) or []
+
+    if not variants:
+        return normalized_color, int(product.cantidad_stock)
+
+    if not normalized_color:
+        raise ConflictError("Debes seleccionar un color disponible antes de agregar al carrito.")
+
+    match = None
+    for variant in variants:
+        if not isinstance(variant, dict):
+            continue
+        if str(variant.get("color", "")).strip().lower() == normalized_color.lower():
+            match = variant
+            break
+
+    if not match:
+        raise ConflictError(f"El color '{normalized_color}' no está disponible para este producto.")
+
+    return normalized_color, int(match.get("stock", 0) or 0)
+
+
+def decrease_color_variant_stock(
+    product: Product,
+    *,
+    color_selected: str | None,
+    quantity: int,
+) -> None:
+    """Descuenta stock general y por variante de color cuando aplique."""
+    normalized_color, stock_limit = resolve_color_and_stock_limit(product, color_selected)
+    if quantity > stock_limit:
+        raise ConflictError(
+            f"Stock insuficiente para el color '{normalized_color}'. "
+            f"Disponible: {stock_limit}, solicitado: {quantity}."
+        )
+
+    if quantity > int(product.cantidad_stock):
+        raise ConflictError(
+            f"Stock insuficiente para '{product.nombre}'. "
+            f"Disponible: {product.cantidad_stock}, solicitado: {quantity}."
+        )
+
+    variants = getattr(product, "color_variants", None) or []
+    if variants and normalized_color:
+        updated_variants: list[dict[str, object]] = []
+        for variant in variants:
+            if not isinstance(variant, dict):
+                continue
+
+            color = str(variant.get("color", "")).strip()
+            variant_stock = int(variant.get("stock", 0) or 0)
+            if color.lower() == normalized_color.lower():
+                variant_stock -= quantity
+
+            updated_variants.append(
+                {
+                    "color": color,
+                    "image_url": variant.get("image_url"),
+                    "stock": max(0, variant_stock),
+                }
+            )
+
+        product.color_variants = updated_variants
+
+    product.cantidad_stock = max(0, int(product.cantidad_stock) - quantity)
 
 
 @dataclass
@@ -69,27 +171,35 @@ def add_item_for_user(
     user_id: int,
     product_id: int,
     quantity: int,
+    color_selected: str | None = None,
 ) -> CartItem:
     """Agrega o actualiza un ítem del carrito para un usuario autenticado."""
     if quantity <= 0:
         raise ConflictError("La cantidad debe ser mayor que cero.")
 
     product = get_product_for_cart(db, product_id)
+    normalized_color, stock_limit = resolve_color_and_stock_limit(product, color_selected)
 
     existing_item = db.scalar(
         select(CartItem).where(
             CartItem.user_id == user_id,
             CartItem.product_id == product_id,
+            CartItem.color_selected == normalized_color,
         )
     )
 
     current_qty = existing_item.quantity if existing_item else 0
     target_qty = current_qty + quantity
 
-    if target_qty > product.cantidad_stock:
+    if target_qty > stock_limit:
+        if normalized_color:
+            raise ConflictError(
+                "Stock insuficiente para la cantidad solicitada en el color "
+                f"'{normalized_color}'. Stock disponible: {stock_limit}."
+            )
         raise ConflictError(
             "Stock insuficiente para la cantidad solicitada. "
-            f"Stock disponible: {product.cantidad_stock}."
+            f"Stock disponible: {stock_limit}."
         )
 
     if existing_item:
@@ -102,6 +212,7 @@ def add_item_for_user(
     new_item = CartItem(
         user_id=user_id,
         product_id=product_id,
+        color_selected=normalized_color,
         quantity=quantity,
         price=float(product.precio_unitario),
     )
@@ -171,27 +282,35 @@ def add_item_for_session(
     session_id: str,
     product_id: int,
     quantity: int,
+    color_selected: str | None = None,
 ) -> CartItem:
     """Agrega o actualiza un item del carrito para una sesion anonima."""
     if quantity <= 0:
         raise ConflictError("La cantidad debe ser mayor que cero.")
 
     product = get_product_for_cart(db, product_id)
+    normalized_color, stock_limit = resolve_color_and_stock_limit(product, color_selected)
 
     existing_item = db.scalar(
         select(CartItem).where(
             CartItem.session_id == session_id,
             CartItem.product_id == product_id,
+            CartItem.color_selected == normalized_color,
         )
     )
 
     current_qty = existing_item.quantity if existing_item else 0
     target_qty = current_qty + quantity
 
-    if target_qty > product.cantidad_stock:
+    if target_qty > stock_limit:
+        if normalized_color:
+            raise ConflictError(
+                "Stock insuficiente para la cantidad solicitada en el color "
+                f"'{normalized_color}'. Stock disponible: {stock_limit}."
+            )
         raise ConflictError(
             "Stock insuficiente para la cantidad solicitada. "
-            f"Stock disponible: {product.cantidad_stock}."
+            f"Stock disponible: {stock_limit}."
         )
 
     if existing_item:
@@ -205,6 +324,7 @@ def add_item_for_session(
         user_id=None,
         session_id=session_id,
         product_id=product_id,
+        color_selected=normalized_color,
         quantity=quantity,
         price=float(product.precio_unitario),
     )
@@ -258,6 +378,7 @@ def merge_session_cart_to_user(db: Session, *, session_id: str, user_id: int) ->
                 user_id=user_id,
                 product_id=session_item.product_id,
                 quantity=session_item.quantity,
+                color_selected=session_item.color_selected,
             )
         except ConflictError:
             pass

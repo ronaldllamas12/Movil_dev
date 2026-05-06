@@ -10,8 +10,12 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 import requests
+
 from cart.schemas import CartItemResponse
 from cart.services import compute_cart_totals, list_items_for_user
+from payments.interfaces import PaymentProviderClient
+from payments.paypal_client import HTTPPayPalClient
+from payments.epayco_client import HTTPEpaycoClient
 from products.models import Product
 from sqlalchemy.orm import Session
 from users.models import User
@@ -34,13 +38,6 @@ def _safe_float(value: str | None, default: float) -> float:
         return float(value) if value is not None else default
     except ValueError:
         return default
-
-
-def _paypal_api_base() -> str:
-    mode = _env("PAYPAL_MODE", "sandbox").lower()
-    if mode == "live":
-        return "https://api-m.paypal.com"
-    return "https://api-m.sandbox.paypal.com"
 
 
 def _frontend_url() -> str:
@@ -149,6 +146,203 @@ def build_paypal_amount(cop_total: float) -> tuple[str, str]:
     return _format_amount(total, currency), currency
 
 
+# ---------------------------------------------------------------------------
+# PayPal — usa HTTPPayPalClient (inyectable para tests)
+# ---------------------------------------------------------------------------
+
+def create_paypal_order(
+    *,
+    db: Session,
+    user: User,
+    customer: Any,
+    client: PaymentProviderClient | None = None,
+) -> dict[str, str]:
+    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
+
+    if client is None:
+        client = HTTPPayPalClient()
+
+    try:
+        order = get_or_create_pending_order_for_checkout(db, user)
+        save_checkout_customer(
+            db,
+            order=order,
+            customer=customer,
+            provider="paypal",
+            payment_method="Tarjeta/PayPal",
+        )
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+
+    cart_total = get_user_cart_total(db, user)
+    amount, currency = build_paypal_amount(cart_total)
+    reference = build_internal_reference(user, "paypal")
+
+    frontend_url = _resolve_frontend_url(customer)
+
+    payload = {
+        "intent": "CAPTURE",
+        "purchase_units": [
+            {
+                "custom_id": f"order_{order_id_db}",
+                "description": "Compra en Movil Dev",
+                "amount": {"currency_code": currency, "value": amount},
+                "shipping": {
+                    "name": {"full_name": customer.nombre},
+                    "address": {
+                        "address_line_1": customer.direccion,
+                        "admin_area_2": customer.ciudad,
+                        "country_code": "CO",
+                    },
+                },
+            }
+        ],
+        "application_context": {
+            "brand_name": "Movil Dev",
+            "landing_page": "NO_PREFERENCE",
+            "user_action": "PAY_NOW",
+            "return_url": f"{frontend_url}/success?provider=paypal&order_id={order_id_db}",
+            "cancel_url": f"{frontend_url}/cancel",
+        },
+    }
+
+    data = client.create_order(payload)
+
+    approve_url = next(
+        (link["href"] for link in data.get("links", []) if link.get("rel") == "approve"),
+        "",
+    )
+
+    if not approve_url:
+        raise ConflictError("PayPal no retorno una URL de aprobacion.")
+
+    return {
+        "order_id": data["id"],
+        "url": approve_url,
+        "amount": amount,
+        "currency": currency,
+        "invoice": reference,
+        "db_order_id": order_id_db,
+    }
+
+
+def capture_paypal_order(
+    order_id: str,
+    *,
+    client: PaymentProviderClient | None = None,
+) -> dict[str, Any]:
+    if client is None:
+        client = HTTPPayPalClient()
+
+    data = client.capture_order(order_id)
+    status = data.get("status", "")
+    return {"success": status == "COMPLETED", "order_id": data.get("id", order_id), "status": status}
+
+
+# ---------------------------------------------------------------------------
+# ePayco — usa HTTPEpaycoClient (inyectable para tests)
+# ---------------------------------------------------------------------------
+
+def create_epayco_session(
+    *,
+    db: Session,
+    user: User,
+    customer: Any,
+    client: PaymentProviderClient | None = None,
+) -> dict[str, Any]:
+    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
+
+    if client is None:
+        client = HTTPEpaycoClient()
+
+    try:
+        order = get_or_create_pending_order_for_checkout(db, user)
+        save_checkout_customer(
+            db,
+            order=order,
+            customer=customer,
+            provider="epayco",
+            payment_method="Tarjeta/transferencia ePayco",
+        )
+        order_id_db = order.id
+    except Exception as e:
+        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
+
+    amount = round(get_user_cart_total(db, user), 2)
+    invoice = str(order_id_db)
+
+    payload = {
+        "checkout_version": "2",
+        "name": "Movil Dev",
+        "description": "Compra de productos Movil Dev",
+        "currency": "COP",
+        "amount": amount,
+        "country": "CO",
+        "lang": "ES",
+        "invoice": invoice,
+        "extras": {
+            "extra1": str(user.id),
+            "extra2": customer.nombre,
+            "extra3": customer.telefono,
+            "extra4": customer.direccion,
+            "extra5": customer.ciudad,
+            "extra6": str(order_id_db),
+        },
+    }
+
+    frontend_url = _resolve_frontend_url(customer)
+    response_url = f"{frontend_url}/success?provider=epayco&order_id={order_id_db}"
+    confirmation_url = _env(
+        "EPAYCO_CONFIRMATION_URL",
+        f"{_backend_url()}/payments/epayco/confirmation",
+    )
+
+    if _is_public_https_url(response_url):
+        payload["response"] = response_url
+
+    if _is_public_https_url(confirmation_url):
+        payload["confirmation"] = confirmation_url
+
+    data = client.create_order(payload)
+
+    if data.get("success") is False:
+        from payments.epayco_client import _epayco_error_message
+        raise ConflictError(
+            _epayco_error_message(data, "No se pudo crear la sesion de pago en ePayco.")
+        )
+
+    session_data = data.get("data") or {}
+    session_id = (
+        session_data.get("sessionId")
+        or session_data.get("sessionID")
+        or session_data.get("session_id")
+        or data.get("sessionId")
+        or data.get("sessionID")
+        or data.get("session_id")
+    )
+
+    if not session_id:
+        from payments.epayco_client import _epayco_error_message
+        raise ConflictError(_epayco_error_message(data, "ePayco no retorno el ID de sesion."))
+
+    return {
+        "session_id": session_id,
+        "token": session_data.get("token"),
+        "invoice": invoice,
+        "amount": amount,
+        "currency": "COP",
+        "db_order_id": order_id_db,
+    }
+
+
+def _paypal_api_base() -> str:
+    mode = _env("PAYPAL_MODE", "sandbox").lower()
+    if mode == "live":
+        return "https://api-m.paypal.com"
+    return "https://api-m.sandbox.paypal.com"
+
+
 def _paypal_access_token() -> str:
     client_id = _env("PAYPAL_CLIENT_ID")
     client_secret = _env("PAYPAL_CLIENT_SECRET")
@@ -209,240 +403,3 @@ def _epayco_error_message(response: requests.Response | dict[str, Any], fallback
         return fallback
 
     return f"{fallback} ePayco: {' - '.join(parts)}"
-
-
-def create_paypal_order(
-    *,
-    db: Session,
-    user: User,
-    customer: Any,
-) -> dict[str, str]:
-    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
-
-    try:
-        order = get_or_create_pending_order_for_checkout(db, user)
-        save_checkout_customer(
-            db,
-            order=order,
-            customer=customer,
-            provider="paypal",
-            payment_method="Tarjeta/PayPal",
-        )
-        order_id_db = order.id
-    except Exception as e:
-        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
-
-    cart_total = get_user_cart_total(db, user)
-    amount, currency = build_paypal_amount(cart_total)
-    reference = build_internal_reference(user, "paypal")
-    access_token = _paypal_access_token()
-
-    frontend_url = _resolve_frontend_url(customer)
-
-    payload = {
-        "intent": "CAPTURE",
-        "purchase_units": [
-            {
-                "custom_id": f"order_{order_id_db}",  # Referencia a la orden en BD
-                "description": "Compra en Movil Dev",
-                "amount": {"currency_code": currency, "value": amount},
-                "shipping": {
-                    "name": {"full_name": customer.nombre},
-                    "address": {
-                        "address_line_1": customer.direccion,
-                        "admin_area_2": customer.ciudad,
-                        "country_code": "CO",
-                    },
-                },
-            }
-        ],
-        "application_context": {
-            "brand_name": "Movil Dev",
-            "landing_page": "NO_PREFERENCE",
-            "user_action": "PAY_NOW",
-            "return_url": f"{frontend_url}/success?provider=paypal&order_id={order_id_db}",
-            "cancel_url": f"{frontend_url}/cancel",
-        },
-    }
-
-    response = requests.post(
-        f"{_paypal_api_base()}/v2/checkout/orders",
-        json=payload,
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        },
-        timeout=20,
-    )
-
-    if response.status_code >= 400:
-        raise ConflictError(_paypal_error_message(response, "No se pudo crear la orden en PayPal."))
-
-    data = response.json()
-    approve_url = next(
-        (link["href"] for link in data.get("links", []) if link.get("rel") == "approve"),
-        "",
-    )
-
-    if not approve_url:
-        raise ConflictError("PayPal no retorno una URL de aprobacion.")
-
-    return {
-        "order_id": data["id"],
-        "url": approve_url,
-        "amount": amount,
-        "currency": currency,
-        "invoice": reference,
-        "db_order_id": order_id_db,
-    }
-
-
-def capture_paypal_order(order_id: str) -> dict[str, Any]:
-    if not order_id:
-        raise ConflictError("Token de PayPal no encontrado.")
-
-    access_token = _paypal_access_token()
-    response = requests.post(
-        f"{_paypal_api_base()}/v2/checkout/orders/{order_id}/capture",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        },
-        timeout=20,
-    )
-
-    if response.status_code >= 400:
-        raise ConflictError(_paypal_error_message(response, "No se pudo capturar el pago en PayPal."))
-
-    data = response.json()
-    status = data.get("status", "")
-    return {"success": status == "COMPLETED", "order_id": data.get("id", order_id), "status": status}
-
-
-def _epayco_access_token() -> str:
-    public_key = _env("EPAYCO_PUBLIC_KEY") or _env("PUBLIC_KEY")
-    private_key = _env("EPAYCO_PRIVATE_KEY")
-
-    if not public_key or not private_key:
-        raise ConflictError("Faltan EPAYCO_PUBLIC_KEY y EPAYCO_PRIVATE_KEY en el backend.")
-
-    credentials = base64.b64encode(f"{public_key}:{private_key}".encode("utf-8")).decode("ascii")
-    response = requests.post(
-        "https://apify.epayco.co/login",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Basic {credentials}",
-        },
-        timeout=20,
-    )
-
-    if response.status_code >= 400:
-        raise ConflictError(
-            _epayco_error_message(
-                response,
-                "ePayco no pudo autenticar las credenciales configuradas.",
-            )
-        )
-
-    return response.json()["token"]
-
-
-def create_epayco_session(
-    *,
-    db: Session,
-    user: User,
-    customer: Any,
-) -> dict[str, Any]:
-    from orders.services import get_or_create_pending_order_for_checkout, save_checkout_customer
-
-    try:
-        order = get_or_create_pending_order_for_checkout(db, user)
-        save_checkout_customer(
-            db,
-            order=order,
-            customer=customer,
-            provider="epayco",
-            payment_method="Tarjeta/transferencia ePayco",
-        )
-        order_id_db = order.id
-    except Exception as e:
-        raise ConflictError(f"No se pudo crear la orden: {str(e)}")
-
-    amount = round(get_user_cart_total(db, user), 2)
-    invoice = str(order_id_db)
-    access_token = _epayco_access_token()
-
-    payload = {
-        "checkout_version": "2",
-        "name": "Movil Dev",
-        "description": "Compra de productos Movil Dev",
-        "currency": "COP",
-        "amount": amount,
-        "country": "CO",
-        "lang": "ES",
-        "invoice": invoice,
-        "extras": {
-            "extra1": str(user.id),
-            "extra2": customer.nombre,
-            "extra3": customer.telefono,
-            "extra4": customer.direccion,
-            "extra5": customer.ciudad,
-            "extra6": str(order_id_db),
-        },
-    }
-
-    frontend_url = _resolve_frontend_url(customer)
-    response_url = f"{frontend_url}/success?provider=epayco&order_id={order_id_db}"
-    confirmation_url = _env(
-        "EPAYCO_CONFIRMATION_URL",
-        f"{_backend_url()}/payments/epayco/confirmation",
-    )
-
-    if _is_public_https_url(response_url):
-        payload["response"] = response_url
-
-    if _is_public_https_url(confirmation_url):
-        payload["confirmation"] = confirmation_url
-
-    response = requests.post(
-        "https://apify.epayco.co/payment/session/create",
-        json=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {access_token}",
-        },
-        timeout=20,
-    )
-
-    if response.status_code >= 400:
-        raise ConflictError(
-            _epayco_error_message(response, "No se pudo crear la sesion de pago en ePayco.")
-        )
-
-    data = response.json()
-    if data.get("success") is False:
-        raise ConflictError(
-            _epayco_error_message(data, "No se pudo crear la sesion de pago en ePayco.")
-        )
-
-    session_data = data.get("data") or {}
-    session_id = (
-        session_data.get("sessionId")
-        or session_data.get("sessionID")
-        or session_data.get("session_id")
-        or data.get("sessionId")
-        or data.get("sessionID")
-        or data.get("session_id")
-    )
-
-    if not session_id:
-        raise ConflictError(_epayco_error_message(data, "ePayco no retorno el ID de sesion."))
-
-    return {
-        "session_id": session_id,
-        "token": session_data.get("token"),
-        "invoice": invoice,
-        "amount": amount,
-        "currency": "COP",
-        "db_order_id": order_id_db,
-    }

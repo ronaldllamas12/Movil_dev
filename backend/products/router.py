@@ -4,12 +4,14 @@ from auth.dependencies import get_current_admin
 from cloudinary_utils import upload_image_to_cloudinary
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from products.schemas import (
+    PaginatedProductResponse,
     ProductCreate,
     ProductImageUploadResponse,
     ProductResponse,
     ProductUpdate,
 )
 from products.services import (
+    count_products,
     create_product,
     delete_product,
     get_product_by_id,
@@ -39,19 +41,25 @@ async def upload_product_image(
     )
 
 
-@router.get("", response_model=list[ProductResponse])
+@router.get("", response_model=PaginatedProductResponse)
 def get_products(
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=200),
+    limit: int = Query(default=20, ge=1, le=200),
     categoria: str | None = Query(default=None),
     db: Session = Depends(get_db),
-) -> list[ProductResponse]:
-    """Lista productos disponibles, con filtro opcional por categoría."""
+) -> PaginatedProductResponse:
+    """Lista productos disponibles, con paginación y filtro opcional por categoría."""
     products = list_products(db, skip=skip, limit=limit, categoria=categoria)
-    return [
-        ProductResponse.model_validate(product, from_attributes=True)
-        for product in products
-    ]
+    total = count_products(db, categoria=categoria)
+    return PaginatedProductResponse(
+        items=[
+            ProductResponse.model_validate(product, from_attributes=True)
+            for product in products
+        ],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

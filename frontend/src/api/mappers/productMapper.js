@@ -48,6 +48,33 @@ export function mapProductFromApi(apiProduct) {
     }
   }
 
+  let colorVariants = [];
+  if (apiProduct.color_variants) {
+    if (typeof apiProduct.color_variants === 'string') {
+      try {
+        colorVariants = JSON.parse(apiProduct.color_variants);
+      } catch (e) {
+        console.error('Error parsing color_variants:', e);
+        colorVariants = [];
+      }
+    } else if (Array.isArray(apiProduct.color_variants)) {
+      colorVariants = apiProduct.color_variants;
+    }
+  }
+
+  colorVariants = colorVariants
+    .filter((variant) => variant && typeof variant === 'object')
+    .map((variant) => ({
+      color: String(variant.color || '').trim(),
+      image_url: variant.image_url ? String(variant.image_url).trim() : null,
+      stock: Number(variant.stock || 0),
+    }))
+    .filter((variant) => variant.color);
+
+  if (colorVariants.length > 0) {
+    coloresDisponibles = colorVariants.map((variant) => variant.color);
+  }
+
   const precio = Number(apiProduct.precio_unitario || 0);
 
   return {
@@ -67,6 +94,7 @@ export function mapProductFromApi(apiProduct) {
     tamano_memoria_ram: apiProduct.tamano_memoria_ram,
     rom: apiProduct.rom,
     colores_disponibles: coloresDisponibles,
+    color_variants: colorVariants,
     conectividad: apiProduct.conectividad,
     procesador: apiProduct.procesador,
     dimensiones: apiProduct.dimensiones,
@@ -100,6 +128,16 @@ export function mapProductsFromApi(apiProducts) {
  * Transforma un producto del frontend al formato de la API (para crear/actualizar)
  */
 export function mapProductToApi(frontendProduct) {
+  const colorVariants = Array.isArray(frontendProduct.color_variants)
+    ? frontendProduct.color_variants
+        .map((variant) => ({
+          color: String(variant?.color || '').trim(),
+          image_url: variant?.image_url ? String(variant.image_url).trim() : null,
+          stock: Number(variant?.stock || 0),
+        }))
+        .filter((variant) => variant.color)
+    : [];
+
   return {
     referencia: frontendProduct.referencia,
     marca: frontendProduct.marca,
@@ -110,7 +148,10 @@ export function mapProductToApi(frontendProduct) {
     precio_unitario: frontendProduct.precio_unitario || frontendProduct.precio,
     tamano_memoria_ram: frontendProduct.tamano_memoria_ram,
     rom: frontendProduct.rom,
-    colores_disponibles: JSON.stringify(frontendProduct.colores_disponibles || []),
+    colores_disponibles: colorVariants.length > 0
+      ? colorVariants.map((variant) => variant.color)
+      : (frontendProduct.colores_disponibles || []),
+    color_variants: colorVariants,
     conectividad: frontendProduct.conectividad,
     procesador: frontendProduct.procesador,
     dimensiones: frontendProduct.dimensiones,

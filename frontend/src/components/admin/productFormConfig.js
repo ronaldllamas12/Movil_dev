@@ -20,6 +20,7 @@ export const BASE_CREATE_FORM = {
   garantia_meses: '',
   imagen_url: '',
   colores_disponibles: '',
+    color_variants: [],
   is_active: true,
   is_featured: false,
 };
@@ -44,25 +45,35 @@ export const BASE_EDIT_FORM = {
   garantia_meses: '',
   imagen_url: '',
   colores_disponibles: '',
+    color_variants: [],
   is_active: true,
   is_featured: false,
 };
 
+
 export function toPayload(form) {
+    const colorVariants = Array.isArray(form.color_variants) ? form.color_variants.filter((v) => v.color?.trim()) : [];
+  const fallbackColors = form.colores_disponibles
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
   return {
     marca: form.marca.trim(),
     referencia: form.referencia.trim(),
     nombre: form.nombre.trim(),
     categoria: form.categoria,
     descripcion_breve: form.descripcion_breve.trim(),
-    cantidad_stock: Number(form.cantidad_stock || 0),
+    cantidad_stock: colorVariants.length > 0
+      ? colorVariants.reduce((acc, item) => acc + Number(item.stock || 0), 0)
+      : Number(form.cantidad_stock || 0),
     precio_unitario: Number(form.precio_unitario || 0),
     tamano_memoria_ram: form.tamano_memoria_ram.trim(),
     rom: form.rom.trim(),
-    colores_disponibles: form.colores_disponibles
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
+    colores_disponibles: colorVariants.length > 0
+      ? colorVariants.map((variant) => variant.color)
+      : fallbackColors,
+    color_variants: colorVariants,
     conectividad: form.conectividad.trim(),
     procesador: form.procesador.trim(),
     dimensiones: form.dimensiones.trim(),
@@ -100,6 +111,7 @@ export function productToEditForm(product) {
     colores_disponibles: Array.isArray(product.colores_disponibles)
       ? product.colores_disponibles.join(', ')
       : '',
+      color_variants: Array.isArray(product.color_variants) ? product.color_variants : [],
     is_active: Boolean(product.is_active),
     is_featured: Boolean(product.is_featured),
   };

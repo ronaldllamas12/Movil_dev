@@ -36,6 +36,31 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
     }
   }, [isOpen, product]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const activeProduct = fullProduct || product;
+    const variants = Array.isArray(activeProduct?.color_variants)
+      ? activeProduct.color_variants
+      : [];
+
+    if (variants.length > 0) {
+      const available = variants.map((variant) => variant.color);
+      setSelectedColor((prev) => (available.includes(prev) ? prev : variants[0].color));
+      return;
+    }
+
+    const colors = Array.isArray(activeProduct?.colores_disponibles)
+      ? activeProduct.colores_disponibles
+      : [];
+
+    if (colors.length > 0) {
+      setSelectedColor((prev) => (colors.includes(prev) ? prev : colors[0]));
+    }
+  }, [isOpen, fullProduct, product]);
+
   // Evita que la página de detrás haga scroll; solo el panel del modal desplaza.
   useEffect(() => {
     if (!isOpen) {
@@ -58,6 +83,14 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
 
   // Ya no necesitamos normalizeProduct porque el mapper ya lo hizo
   const normalizedProduct = displayProduct;
+
+  const productVariants = Array.isArray(normalizedProduct.color_variants)
+    ? normalizedProduct.color_variants
+    : [];
+
+  const selectedVariant = productVariants.find((variant) => variant.color === selectedColor) || null;
+  const displayImage = selectedVariant?.image_url || normalizedProduct.imagen_url || normalizedProduct.image;
+  const displayStock = selectedVariant ? Number(selectedVariant.stock || 0) : Number(normalizedProduct.cantidad_stock || 0);
 
   // Mapeo de colores
   const colorClasses = {
@@ -90,7 +123,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
 
   const handleQuantityChange = (delta) => {
     const newQuantity = quantity + delta;
-    if (newQuantity >= 1 && newQuantity <= (normalizedProduct.cantidad_stock || 999)) {
+    if (newQuantity >= 1 && newQuantity <= (displayStock || 999)) {
       setQuantity(newQuantity);
     }
   };
@@ -131,7 +164,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
             {/* Imagen del producto */}
             <div className="bg-[color:var(--surface-muted)] rounded-2xl p-6 flex items-center justify-center border border-[color:var(--border)]">
               <img 
-                src={normalizedProduct.imagen_url || normalizedProduct.image} 
+                src={displayImage}
                 alt={normalizedProduct.nombre}
                 className="w-full max-w-sm object-contain"
                 onError={(e) => {
@@ -156,9 +189,9 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                 <span className="text-3xl font-bold text-blue-600">
                   ${normalizedProduct.formattedPrice}
                 </span>
-                {normalizedProduct.cantidad_stock > 0 ? (
+                {displayStock > 0 ? (
                   <span className="text-sm text-green-600 font-medium">
-                    ✓ Stock disponible ({normalizedProduct.cantidad_stock} unidades)
+                    ✓ Stock disponible ({displayStock} unidades)
                   </span>
                 ) : (
                   <span className="text-sm text-red-600 font-medium">Agotado</span>
@@ -170,23 +203,37 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                 <div>
                   <h3 className="font-semibold text-[color:var(--text)] mb-3">Colores disponibles</h3>
                   <div className="flex gap-3 flex-wrap">
-                    {normalizedProduct.colores_disponibles.map((color) => (
+                    {normalizedProduct.colores_disponibles.map((color) => {
+                      const variant = productVariants.find((item) => item.color === color);
+                      const variantStock = variant ? Number(variant.stock || 0) : null;
+                      const isOutOfStock = variantStock === 0;
+
+                      return (
                       <button
                         key={color}
-                        onClick={() => setSelectedColor(color)}
+                        onClick={() => {
+                          setSelectedColor(color);
+                          setQuantity(1);
+                        }}
                         className="relative group"
+                        type="button"
                       >
                         <div className={`
                           w-10 h-10 rounded-full ${colorClasses[color] || 'bg-gray-400'} 
                           ring-2 ring-offset-2 transition-all
                           ${selectedColor === color ? 'ring-blue-500 ring-offset-2' : 'ring-transparent'}
                           hover:scale-110 transition-transform
+                          ${isOutOfStock ? 'opacity-40' : ''}
                         `} />
                         <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[color:var(--muted)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                          {color}
+                          {color}{variantStock !== null ? ` (${variantStock})` : ''}
                         </span>
+                        {isOutOfStock ? (
+                          <span className="absolute -top-1 -right-1 size-2 rounded-full bg-red-500" />
+                        ) : null}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                   {selectedColor && (
                     <p className="text-sm text-[color:var(--muted)] mt-2">
@@ -211,7 +258,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                   <button
                     onClick={() => handleQuantityChange(1)}
                     className="w-10 h-10 rounded-full border border-[color:var(--border)] flex items-center justify-center hover:bg-[color:var(--surface-hover)] transition-colors"
-                    disabled={quantity >= normalizedProduct.cantidad_stock}
+                    disabled={quantity >= displayStock}
                   >
                     +
                   </button>
@@ -221,10 +268,10 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
               {/* Botón añadir al carrito */}
               <button
                 onClick={handleAddToCart}
-                disabled={normalizedProduct.cantidad_stock === 0}
+                disabled={displayStock === 0}
                 className={`
                   w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
-                  ${normalizedProduct.cantidad_stock > 0 
+                  ${displayStock > 0 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                     : 'bg-gray-300 cursor-not-allowed text-gray-500'}
                 `}

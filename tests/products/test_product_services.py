@@ -32,7 +32,16 @@ def create_test_db() -> Session:
     engine = create_engine("sqlite:///:memory:")
     TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     Base.metadata.create_all(bind=engine)
-    return TestingSessionLocal()
+    db = TestingSessionLocal()
+    db.info["_engine"] = engine
+    return db
+
+
+def close_test_db(db: Session) -> None:
+    engine = db.info.get("_engine")
+    db.close()
+    if engine is not None:
+        engine.dispose()
 
 
 def _payload(**overrides) -> ProductCreate:
@@ -93,7 +102,7 @@ def test_create_product_guarda_todos_los_campos():
         assert product.garantia_meses == 12
         assert product.is_active is True
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_create_product_referencia_duplicada_lanza_conflict():
@@ -108,7 +117,7 @@ def test_create_product_referencia_duplicada_lanza_conflict():
         except ConflictError as exc:
             assert "referencia" in exc.message.lower()
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_create_product_categoria_invalida_lanza_validation_error():
@@ -137,7 +146,7 @@ def test_list_products_devuelve_todos():
 
         assert len(products) == 3
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_list_products_paginacion():
@@ -151,7 +160,7 @@ def test_list_products_paginacion():
 
         assert len(page) == 2
     finally:
-        db.close()
+        close_test_db(db)
 
 
 # ──────────────────────────────────────────────
@@ -169,7 +178,7 @@ def test_get_product_by_id_devuelve_correcto():
         assert found.id == created.id
         assert found.referencia == "REF-001"
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_get_product_by_id_inexistente_lanza_not_found():
@@ -182,7 +191,7 @@ def test_get_product_by_id_inexistente_lanza_not_found():
         except NotFoundError as exc:
             assert "Producto" in exc.message
     finally:
-        db.close()
+        close_test_db(db)
 
 
 # ──────────────────────────────────────────────
@@ -205,7 +214,7 @@ def test_update_product_modifica_campos_enviados():
         assert updated.cantidad_stock == 25
         assert updated.marca == "Samsung"  # no cambió
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_update_product_referencia_duplicada_lanza_conflict():
@@ -221,7 +230,7 @@ def test_update_product_referencia_duplicada_lanza_conflict():
         except ConflictError as exc:
             assert "referencia" in exc.message.lower()
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_update_product_referencia_misma_no_lanza_conflict():
@@ -238,7 +247,7 @@ def test_update_product_referencia_misma_no_lanza_conflict():
         assert updated.referencia == "SAME-001"
         assert updated.nombre == "Nuevo Nombre"
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_update_product_inexistente_lanza_not_found():
@@ -251,7 +260,7 @@ def test_update_product_inexistente_lanza_not_found():
         except NotFoundError:
             pass
     finally:
-        db.close()
+        close_test_db(db)
 
 
 # ──────────────────────────────────────────────
@@ -274,7 +283,7 @@ def test_delete_product_elimina_correctamente():
         except NotFoundError:
             pass
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_delete_product_inexistente_lanza_not_found():
@@ -287,7 +296,7 @@ def test_delete_product_inexistente_lanza_not_found():
         except NotFoundError:
             pass
     finally:
-        db.close()
+        close_test_db(db)
 
 
 # ──────────────────────────────────────────────
@@ -306,7 +315,7 @@ def test_toggle_product_active_desactiva():
 
         assert deactivated.is_active is False
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_toggle_product_active_reactiva():
@@ -320,7 +329,7 @@ def test_toggle_product_active_reactiva():
 
         assert reactivated.is_active is True
     finally:
-        db.close()
+        close_test_db(db)
 
 
 def test_toggle_product_active_inexistente_lanza_not_found():
@@ -333,4 +342,4 @@ def test_toggle_product_active_inexistente_lanza_not_found():
         except NotFoundError:
             pass
     finally:
-        db.close()
+        close_test_db(db)

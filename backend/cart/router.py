@@ -23,8 +23,11 @@ from cart.services import (
     compute_cart_totals,
     get_or_create_cart_settings,
     get_product_for_cart,
+    get_shipping_fee,
     list_items_for_user,
     remove_item_for_user,
+    resolve_color_and_stock_limit,
+    safe_float,
     set_cart_tax_percent,
 )
 from fastapi import APIRouter, Depends, Request, Response, status
@@ -33,19 +36,12 @@ from sqlalchemy.orm import Session
 from users.models import User
 
 from database.core.database import get_db
-from database.core.errors import ConflictError, NotFoundError
+from database.core.errors import ConflictError
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 COOKIE_NAME = "guest_cart"
 COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
-
-
-def _safe_float(value: str | None, default: float) -> float:
-    try:
-        return float(value) if value is not None else default
-    except ValueError:
-        return default
 
 
 def _safe_int(value: str | None, default: int) -> int:
@@ -68,29 +64,13 @@ def _safe_bool(value: str | None, default: bool) -> bool:
 
 
 def _get_cart_tax_percent() -> float:
-    return max(0.0, min(100.0, _safe_float(os.getenv("CART_TAX_PERCENT"), 19.0)))
+    return max(0.0, min(100.0, safe_float(os.getenv("CART_TAX_PERCENT"), 19.0)))
 
 
 def _get_persistent_tax_percent(db: Session) -> float:
     env_default = _get_cart_tax_percent()
     settings = get_or_create_cart_settings(db, default_tax_percent=env_default)
     return float(settings.tax_percent)
-
-
-def _get_shipping_fee(*, subtotal: float, item_count: int) -> float:
-    mode = os.getenv("CART_SHIPPING_MODE", "fixed").strip().lower()
-    free_from = _safe_float(os.getenv("CART_FREE_SHIPPING_FROM"), -1)
-
-    if free_from >= 0 and subtotal >= free_from:
-        return 0.0
-
-    if mode == "dynamic":
-        dynamic_per_item = max(
-            0.0, _safe_float(os.getenv("CART_SHIPPING_DYNAMIC_PER_ITEM"), 0.0)
-        )
-        return dynamic_per_item * item_count
-
-    return max(0.0, _safe_float(os.getenv("CART_SHIPPING_FIXED_FEE"), 0.0))
 
 
 def _parse_guest_cart(request: Request) -> list[dict[str, Any]]:
@@ -114,6 +94,7 @@ def _parse_guest_cart(request: Request) -> list[dict[str, Any]]:
         product_id = item.get("product_id")
         quantity = item.get("quantity")
         price = item.get("price")
+        color_selected = item.get("color_selected")
 
         if not isinstance(product_id, int) or product_id <= 0:
             continue
@@ -124,11 +105,15 @@ def _parse_guest_cart(request: Request) -> list[dict[str, Any]]:
         if not isinstance(price, (int, float)) or price < 0:
             continue
 
+        if color_selected is not None and not isinstance(color_selected, str):
+            continue
+
         clean_items.append(
             {
                 "product_id": product_id,
                 "quantity": quantity,
                 "price": float(price),
+                "color_selected": (color_selected or "").strip(),
             }
         )
 
@@ -161,6 +146,7 @@ def _to_item_response_from_product(
     product: Product,
     quantity: int,
     price: float,
+    color_selected: str | None = None,
 ) -> CartItemResponse:
     return CartItemResponse(
         id=item_id,
@@ -168,6 +154,7 @@ def _to_item_response_from_product(
         referencia=product.referencia,
         nombre=product.nombre,
         imagen_url=product.imagen_url,
+        color_selected=(color_selected or "") or None,
         quantity=quantity,
         price=round(price, 2),
         line_total=round(price * quantity, 2),
@@ -189,6 +176,7 @@ def _build_items_for_authenticated(db: Session, user_id: int) -> list[CartItemRe
                 product=product,
                 quantity=item.quantity,
                 price=float(item.price),
+                color_selected=item.color_selected,
             )
         )
 
@@ -210,6 +198,7 @@ def _build_items_for_guest(db: Session, request: Request) -> list[CartItemRespon
                 product=product,
                 quantity=item["quantity"],
                 price=item["price"],
+                color_selected=item.get("color_selected"),
             )
         )
 
@@ -273,6 +262,7 @@ def add_to_cart(
             user_id=current_user.id,
             product_id=payload.product_id,
             quantity=payload.quantity,
+            color_selected=payload.color_selected,
         )
 
         return CartAddResponse(
@@ -282,21 +272,37 @@ def add_to_cart(
                 product=product,
                 quantity=item.quantity,
                 price=float(item.price),
+                color_selected=item.color_selected,
             ),
         )
 
     guest_items = _parse_guest_cart(request)
+    normalized_color, stock_limit = resolve_color_and_stock_limit(
+        product,
+        payload.color_selected,
+    )
     existing = next(
-        (i for i in guest_items if i["product_id"] == payload.product_id), None
+        (
+            i
+            for i in guest_items
+            if i["product_id"] == payload.product_id
+            and (i.get("color_selected") or "") == normalized_color
+        ),
+        None,
     )
 
     current_qty = existing["quantity"] if existing else 0
     target_qty = current_qty + payload.quantity
 
-    if target_qty > product.cantidad_stock:
+    if target_qty > stock_limit:
+        if normalized_color:
+            raise ConflictError(
+                "Stock insuficiente para la cantidad solicitada en el color "
+                f"'{normalized_color}'. Stock disponible: {stock_limit}."
+            )
         raise ConflictError(
             "Stock insuficiente para la cantidad solicitada. "
-            f"Stock disponible: {product.cantidad_stock}."
+            f"Stock disponible: {stock_limit}."
         )
 
     price = float(product.precio_unitario)
@@ -304,12 +310,14 @@ def add_to_cart(
     if existing:
         existing["quantity"] = target_qty
         existing["price"] = price
+        existing["color_selected"] = normalized_color
         item_id = existing["product_id"]
     else:
         new_item = {
             "product_id": product.id,
             "quantity": payload.quantity,
             "price": price,
+            "color_selected": normalized_color,
         }
         guest_items.append(new_item)
         item_id = new_item["product_id"]
@@ -323,6 +331,7 @@ def add_to_cart(
             product=product,
             quantity=target_qty,
             price=price,
+            color_selected=normalized_color,
         ),
     )
 
@@ -343,9 +352,6 @@ def remove_from_cart(
     guest_items = _parse_guest_cart(request)
     next_items = [item for item in guest_items if item["product_id"] != item_id]
 
-    if len(next_items) == len(guest_items):
-        raise NotFoundError("Ítem de carrito no encontrado.")
-
     _set_guest_cart_cookie(response, next_items)
 
 
@@ -362,7 +368,7 @@ def get_cart_total(
         normalized_items = _build_items_for_authenticated(db, current_user.id)
 
         subtotal = sum(i.line_total for i in normalized_items)
-        shipping_fee = _get_shipping_fee(
+        shipping_fee = get_shipping_fee(
             subtotal=subtotal,
             item_count=sum(i.quantity for i in normalized_items),
         )
@@ -376,7 +382,7 @@ def get_cart_total(
     normalized_guest_items = _build_items_for_guest(db, request)
 
     subtotal = sum(i.line_total for i in normalized_guest_items)
-    shipping_fee = _get_shipping_fee(
+    shipping_fee = get_shipping_fee(
         subtotal=subtotal,
         item_count=sum(i.quantity for i in normalized_guest_items),
     )
@@ -403,6 +409,7 @@ def merge_guest_cart(
                 user_id=current_user.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
+                color_selected=item.color_selected,
             )
         except (NotFoundError, ConflictError):
             # Si el producto no existe o hay conflicto de stock, se ignora ese ítem.

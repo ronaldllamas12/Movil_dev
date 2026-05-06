@@ -30,7 +30,9 @@ def test_customer_can_complete_backend_checkout_flow(client, make_product):
 
     catalog = client.get("/products", params={"categoria": "gama media"})
     assert catalog.status_code == 200
-    assert any(item["id"] == product.id for item in catalog.json())
+    catalog_payload = catalog.json()
+    catalog_items = catalog_payload.get("items", []) if isinstance(catalog_payload, dict) else catalog_payload
+    assert any(item["id"] == product.id for item in catalog_items)
 
     add = client.post(
         "/cart/add",

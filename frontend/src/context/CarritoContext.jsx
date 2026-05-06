@@ -59,6 +59,7 @@ function mapCartItemFromApi(item) {
     nombre: item.nombre,
     precio: Number(item.price || 0),
     cantidad: item.quantity,
+    colorSelected: item.color_selected || '',
     image: item.imagen_url || 'https://placehold.co/400x400?text=Producto',
   };
 }
@@ -219,6 +220,7 @@ export const CarritoProvider = ({ children }) => {
           guestItems.map((item) => ({
             product_id: item.productId ?? item.id,
             quantity: item.cantidad,
+            color_selected: item.colorSelected || null,
           })),
         );
       } catch {
@@ -252,10 +254,22 @@ export const CarritoProvider = ({ children }) => {
     try {
       setCartError('');
 
+      const firstVariantColor = Array.isArray(producto.color_variants) && producto.color_variants.length > 0
+        ? String(producto.color_variants[0]?.color || '').trim()
+        : '';
+      const firstListedColor = Array.isArray(producto.colores_disponibles) && producto.colores_disponibles.length > 0
+        ? String(producto.colores_disponibles[0] || '').trim()
+        : '';
+      const colorSelected = String(producto.color_selected || firstVariantColor || firstListedColor || '').trim();
+
       if (!isLoggedIn) {
         // Carrito guest: guardar en localStorage
         const items = loadGuestCart();
-        const existing = items.find((i) => (i.productId ?? i.id) === producto.id);
+        const existing = items.find(
+          (i) =>
+            (i.productId ?? i.id) === producto.id
+            && String(i.colorSelected || '').trim().toLowerCase() === colorSelected.toLowerCase(),
+        );
 
         if (existing) {
           existing.cantidad += quantity;
@@ -267,6 +281,7 @@ export const CarritoProvider = ({ children }) => {
             nombre: producto.nombre || '',
             precio: Number(producto.precio || producto.precio_unitario || 0),
             cantidad: quantity,
+            colorSelected,
             image: producto.imagen_url || producto.image || 'https://placehold.co/400x400?text=Producto',
           });
         }
@@ -276,7 +291,7 @@ export const CarritoProvider = ({ children }) => {
         return true;
       }
 
-      await addToCart(producto.id, quantity);
+      await addToCart(producto.id, quantity, colorSelected || null);
       await refreshServerCart();
       return true;
     } catch (error) {
@@ -338,14 +353,14 @@ export const CarritoProvider = ({ children }) => {
       }
 
       if (delta > 0) {
-        await addToCart(item.productId, delta);
+        await addToCart(item.productId, delta, item.colorSelected || null);
         await refreshServerCart();
         return;
       }
 
       // El backend actual no expone PATCH quantity, por eso reemplazamos el Ã­tem.
       await removeFromCart(id);
-      await addToCart(item.productId, nextQty);
+      await addToCart(item.productId, nextQty, item.colorSelected || null);
       await refreshServerCart();
     } catch (error) {
       setCartError(getApiErrorMessage(error));

@@ -31,6 +31,7 @@ class PayPalCaptureResponse(BaseModel):
 class EpaycoSessionResponse(BaseModel):
     session_id: str
     token: str | None = None
+    checkout_url: str | None = None
     invoice: str
     amount: float
     db_order_id: int
