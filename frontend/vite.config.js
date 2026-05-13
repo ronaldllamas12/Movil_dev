@@ -22,7 +22,7 @@ export default defineConfig({
               "src/**/*.spec.*",
               "src/test/**",
             ],
-            extension: [".js", ".jsx"],
+            extension: [".js", ".jsx", ".ts", ".tsx"],
             requireEnv: false,
           }),
         ]
