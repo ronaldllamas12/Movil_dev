@@ -1,3 +1,4 @@
+// opcion para iniciar sesion con google
 export default function GoogleSignInSection({ isGoogleEnabled, googleScriptError, googleButtonRef }) {
   return (
     <>

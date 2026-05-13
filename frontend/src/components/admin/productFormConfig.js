@@ -1,3 +1,4 @@
+//esto hace que la categoria sea un select
 export const CATEGORY_OPTIONS = ['premium', 'gama media', 'economico'];
 
 export const BASE_CREATE_FORM = {

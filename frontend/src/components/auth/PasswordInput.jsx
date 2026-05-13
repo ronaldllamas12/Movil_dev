@@ -1,3 +1,4 @@
+// aca se muestra el input de contraseña con un icono de candado y un botón para mostrar u ocultar la contraseña. también maneja la validación de errores y muestra un mensaje de error debajo del input si es necesario.
 import { Eye, EyeOff, Lock } from 'lucide-react';
 
 export default function PasswordInput({

@@ -1,3 +1,5 @@
+// gestiona el ciclo de vida del usuario, (login, registro, googleauth)
+// aca se guardan los tokens tras un login exitoso
 import apiClient from '../axiosClient';
 
 export async function loginUser(credentials) {

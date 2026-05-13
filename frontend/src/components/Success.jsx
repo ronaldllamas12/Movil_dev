@@ -1,3 +1,4 @@
+//aca mostramos mensaje de exito de compra
 import { CheckCircle2, Home, Loader2, ShoppingBag, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';

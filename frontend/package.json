@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:coverage": "cross-env VITE_COVERAGE=true vite",
     "build": "vite build",
-    "test": "node --test src",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "cy:coverage": "cross-env VITE_COVERAGE=true start-server-and-test dev:coverage http://127.0.0.1:5173 cy:run"
   },
   "dependencies": {
     "@sentry/react": "^10.51.0",
@@ -20,21 +26,32 @@
     "react-router-dom": "^7.14.0"
   },
   "devDependencies": {
+    "@cypress/code-coverage": "^4.0.3",
     "@eslint/js": "^9.39.4",
     "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/parser": "^8.59.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.6",
     "autoprefixer": "^10.4.27",
+    "cross-env": "^10.1.0",
+    "cypress": "^15.15.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.9",
+    "start-server-and-test": "^3.0.5",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vite-plugin-istanbul": "^8.0.0",
+    "vitest": "^4.1.6"
   }
 }

@@ -1,0 +1,21 @@
+[
+  {
+    "id": 101,
+    "referencia": "REF-CY",
+    "marca": "TestBrand",
+    "nombre": "Cypress Phone",
+    "categoria": "premium",
+    "descripcion_breve": "Para pruebas E2E",
+    "cantidad_stock": 3,
+    "precio_unitario": 999000,
+    "tamano_memoria_ram": "8GB",
+    "rom": "256GB",
+    "colores_disponibles": ["Negro"],
+    "color_variants": [],
+    "imagen_url": "https://placehold.co/200x200?text=CY",
+    "is_active": true,
+    "is_featured": true,
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": null
+  }
+]

@@ -1,3 +1,7 @@
+// el guardian de los formularios
+
+//se encarga exclusivamente de la validación en tiempo real de los formularios de registro e inicio de sesión.
+
 import { useState } from 'react';
 
 const validateEmail = (emailValue) => {

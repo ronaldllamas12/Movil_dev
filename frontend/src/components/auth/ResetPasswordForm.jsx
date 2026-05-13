@@ -1,3 +1,4 @@
+// aca se muestra el formulario para restablecer la contraseña, con los campos de nueva contraseña y confirmación de nueva contraseña. también maneja la validación de errores y muestra un mensaje de error debajo de cada campo si es necesario. además, incluye un botón para volver a la pantalla anterior.
 import { ArrowLeft } from 'lucide-react';
 import PasswordInput from './PasswordInput';
 

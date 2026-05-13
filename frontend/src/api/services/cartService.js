@@ -1,3 +1,5 @@
+//Manejan la lógica transaccional.
+
 import apiClient from '../axiosClient';
 
 export async function getCartItems() {

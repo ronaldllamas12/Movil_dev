@@ -1,9 +1,11 @@
-const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=Producto';
+// aca transformamos los datos crudos que vienen del backend a un formato que el frontend entienda.
+
+const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=Producto'; 
 
 function formatPrice(value) {
   const numericValue = Number(value || 0);
 
-  return numericValue.toLocaleString('es-CO', {
+  return numericValue.toLocaleString('es-CO', { 
     maximumFractionDigits: 0,
   });
 }

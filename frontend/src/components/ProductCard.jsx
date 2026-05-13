@@ -1,4 +1,5 @@
 // components/ProductCard.jsx
+//esto hace que cada producto se vea bonito y tenga toda la info necesaria, ademas de los botones para ver detalles y agregar al carrito. tambien maneja el estado del modal de detalles y muestra el stock disponible de forma clara.
 import { Eye, ShoppingCart, Star } from 'lucide-react';
 import { memo, useState } from 'react';
 import { useCarrito } from '../context/CarritoContext';

@@ -1,3 +1,4 @@
+// esto hace que al hacer click en "proceder al pago" se abra una nueva ventana para completar el pago con PayPal o ePayco, dependiendo de la opción seleccionada. maneja el estado de carga y errores, y muestra mensajes claros al usuario en caso de problemas. también se asegura de cargar el script de ePayco solo una vez para optimizar el rendimiento. el diseño es limpio y centrado, con botones grandes y llamativos para cada método de pago.
 import { useEffect, useState } from "react";
 import { useCarrito } from "../context/CarritoContext";
 import { formatCurrency } from "../utils/formatters";

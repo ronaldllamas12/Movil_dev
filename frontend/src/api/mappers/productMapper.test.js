@@ -1,13 +1,22 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+/**
+ * Tests del mapper de productos (API ↔ frontend).
+ *
+ * Qué validamos aquí:
+ * - Que los precios y textos visibles (formattedPrice) sigan el formato esperado.
+ * - Que colores e imágenes vengan bien parseados aunque la API mande strings JSON.
+ * - Que entradas inválidas (null, no-array) no rompan la app (listas vacías, null).
+ * - Que el payload hacia el backend respete el contrato (snake_case / campos clave).
+ */
+import { describe, expect, it } from 'vitest';
 
 import {
-    mapProductFromApi,
-    mapProductsFromApi,
-    mapProductToApi,
-    toProductCardModel,
+  mapProductFromApi,
+  mapProductsFromApi,
+  mapProductToApi,
+  toProductCardModel,
 } from './productMapper.js';
 
+/** Fixture mínima que imita la forma típica de un producto en la API */
 const apiProduct = {
   id: 1,
   referencia: 'REF-001',
@@ -39,50 +48,86 @@ const apiProduct = {
   updated_at: null,
 };
 
-test('mapProductFromApi normaliza precios, colores e imagen', () => {
-  const mapped = mapProductFromApi(apiProduct);
+describe('mapProductFromApi', () => {
+  it('normaliza precios, colores e imagen', () => {
+    const mapped = mapProductFromApi(apiProduct);
 
-  assert.equal(mapped.id, 1);
-  assert.equal(mapped.precio, 1190000);
-  assert.equal(mapped.formattedPrice, '1.190.000');
-  assert.deepEqual(mapped.colores_disponibles, ['Negro', 'Azul']);
-  assert.equal(mapped.color_variants.length, 2);
-  assert.equal(mapped.image, 'https://example.com/phone.jpg');
-});
-
-test('mapProductFromApi acepta colores como JSON serializado', () => {
-  const mapped = mapProductFromApi({
-    ...apiProduct,
-    colores_disponibles: '["Rojo","Blanco"]',
-    color_variants: [],
+    expect(mapped.id).toBe(1);
+    expect(mapped.precio).toBe(1190000);
+    expect(mapped.formattedPrice).toBe('1.190.000');
+    expect(mapped.colores_disponibles).toEqual(['Negro', 'Azul']);
+    expect(mapped.color_variants).toHaveLength(2);
+    expect(mapped.image).toBe('https://example.com/phone.jpg');
   });
 
-  assert.deepEqual(mapped.colores_disponibles, ['Rojo', 'Blanco']);
+  it('acepta colores como JSON serializado en string', () => {
+    const mapped = mapProductFromApi({
+      ...apiProduct,
+      colores_disponibles: '["Rojo","Blanco"]',
+      color_variants: [],
+    });
+
+    expect(mapped.colores_disponibles).toEqual(['Rojo', 'Blanco']);
+  });
 });
 
-test('mapProductsFromApi protege contra entradas no lista', () => {
-  assert.deepEqual(mapProductsFromApi(null), []);
-  assert.equal(mapProductsFromApi([apiProduct]).length, 1);
-});
-
-test('mapProductToApi transforma el modelo frontend al contrato del backend', () => {
-  const payload = mapProductToApi({
-    ...apiProduct,
-    precio: 950000,
-    colores_disponibles: ['Negro'],
-    color_variants: [{ color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' }],
+describe('mapProductsFromApi', () => {
+  it('devuelve [] si la API no manda una lista (null / undefined / objeto)', () => {
+    expect(mapProductsFromApi(null)).toEqual([]);
+    expect(mapProductsFromApi(undefined)).toEqual([]);
+    expect(mapProductsFromApi({})).toEqual([]);
   });
 
-  assert.equal(payload.precio_unitario, 1190000);
-  assert.deepEqual(payload.colores_disponibles, ['Negro']);
-  assert.deepEqual(payload.color_variants, [{ color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' }]);
-  assert.equal(payload.is_active, true);
+  it('mapea cada elemento cuando sí es un array', () => {
+    expect(mapProductsFromApi([apiProduct])).toHaveLength(1);
+  });
 });
 
-test('toProductCardModel agrega valores visuales por defecto', () => {
-  const card = toProductCardModel({ ...apiProduct, imagen_url: null });
+describe('mapProductToApi', () => {
+  it('arma el payload que espera el backend (precio_unitario, colores, flags)', () => {
+    const payload = mapProductToApi({
+      ...apiProduct,
+      precio: 950000,
+      colores_disponibles: ['Negro'],
+      color_variants: [{ color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' }],
+    });
 
-  assert.equal(card.image, 'https://placehold.co/400x400?text=Producto');
-  assert.equal(card.rating, 4.7);
-  assert.equal(card.reviews, 0);
+    // precio_unitario del spread sigue siendo el de apiProduct (1190000); precio solo aplica si no hay precio_unitario
+    expect(payload.precio_unitario).toBe(1190000);
+    expect(payload.colores_disponibles).toEqual(['Negro']);
+    expect(payload.color_variants).toEqual([
+      { color: 'Negro', stock: 3, image_url: 'https://example.com/negro.jpg' },
+    ]);
+    expect(payload.is_active).toBe(true);
+  });
+});
+
+describe('mapProductFromApi JSON inválido', () => {
+  it('colores_disponibles mal formado no rompe el mapper', () => {
+    const mapped = mapProductFromApi({
+      ...apiProduct,
+      colores_disponibles: '{no-es-json',
+      color_variants: [],
+    });
+    expect(mapped.colores_disponibles).toEqual([]);
+  });
+
+  it('color_variants mal formado no rompe el mapper', () => {
+    const mapped = mapProductFromApi({
+      ...apiProduct,
+      colores_disponibles: [],
+      color_variants: 'not-json',
+    });
+    expect(mapped.color_variants).toEqual([]);
+  });
+});
+
+describe('toProductCardModel', () => {
+  it('rellena imagen por defecto y metadatos visuales de tarjeta', () => {
+    const card = toProductCardModel({ ...apiProduct, imagen_url: null });
+
+    expect(card.image).toBe('https://placehold.co/400x400?text=Producto');
+    expect(card.rating).toBe(4.7);
+    expect(card.reviews).toBe(0);
+  });
 });

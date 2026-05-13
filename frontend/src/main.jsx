@@ -1,3 +1,4 @@
+// main monta la app en el dom, es el punto de entrada de la aplicación.
 import { StrictMode } from 'react'
 // import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom';

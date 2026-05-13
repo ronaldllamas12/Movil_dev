@@ -1,4 +1,4 @@
-
+// aca tenemos las pestañas para cambiar entre el formulario de inicio de sesión y el de registro, con un diseño moderno y responsivo. cada pestaña se resalta cuando está activa, y al hacer clic en una pestaña se actualiza el estado para mostrar el formulario correspondiente. el diseño es limpio y fácil de usar, con botones grandes y claros para cada opción.
 
 export default function AuthTabs({ activeTab, setActiveTab }) {
   return (

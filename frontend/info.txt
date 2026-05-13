@@ -1,0 +1,147 @@
+# analisis de la estructura del frontend en especial src
+api - es la capa de comunicacion
+    mappers - se encargan de transformar los datos entre el formato utilizado por el backend y el formato utilizado por el frontend.
+    services - se encargan de realizar las solicitudes al backend utilizando  axios, y maneja las respuestas recibidas.
+
+ axiosClientl.js - es una instancia preconfigurada de axios que se utiliza para realizar solicitudes HTTP al backend. Contiene la configuración base, como la URL del servidor y los encabezados comunes.
+
+
+
+components - se encargan de la interfaz de usuario, pueden ser reutilizables y se comunican con los servicios para obtener los datos necesarios para mostrar en la interfaz. contiene los bloque de construccion visuales reutilizables, botones, baners, el catalogo.
+
+iu - componente reutilizables
+
+// usestate permite recordar lo que haga el usuario
+// usseefect ejecuta ciertos procedimientos cuando algo sucede, como cargar datos al iniciar la aplicación o actualizar el título de la página cuando cambia el estado.
+
+
+context - se encargan de manejar el estado global de la aplicación, utilizando el Context API de React para compartir datos entre componentes sin necesidad de pasar props manualmente a través de cada nivel del árbol de componentes.
+Esta capa es fundamental porque actúa como la "memoria a corto plazo" de tu aplicación.
+
+
+API/Services: Traen los datos del servidor (ej. la lista de productos).
+
+API/Mappers: Limpian y formatean esos datos (ej. ponen el precio en pesos colombianos).
+
+Context: Recibe esos datos mapeados y los guarda. Por ejemplo, cuando cartService.getCartItems() devuelve los productos, el CarritoContext los almacena para que el componente Carrito.jsx pueda dibujarlos.
+
+
+
+
+     carritoContext - permite que cualquier parte de la app sepa que productos hay en el carrito sin tener que pasar props por todos lados.
+
+     themeContext - permite que cualquier parte de la app sepa el tema actual (claro u oscuro) sin tener que pasar props por todos lados.
+
+
+
+hooks = capa de logica reutilizable permiten extraer la logica compleja de los componentes.
+
+
+Componente: Llama a una función en productsService.js.
+
+Service: Usa el apiClient (axios) para pedir los datos.
+
+Mapper (Aquí es la unión): El servicio recibe el JSON crudo, y antes de devolverlo al componente, se pasa por el Mapper que vimos antes (mapProductFromApi).
+
+Resultado: El componente recibe un objeto limpio, con precios formateados y URLs de imagen seguras.
+
+
+
+
+¿Cómo se conectan con lo anterior?
+El Hook llama al Servicio: Por ejemplo, un componente usa useAsyncAction para ejecutar authService.loginUser.
+
+El Hook actualiza el Contexto: Una vez que la acción asíncrona termina con éxito, se actualiza el CarritoContext o el estado de autenticación.
+
+El Componente solo observa: El componente visual simplemente pregunta al hook: "¿Estás cargando?" o "¿Hay algún error de validación?".
+
+
+////////////////////////////////////////////////////////////////////
+
+
+
+ (servicios, mappers, contextos y hooks) se une para formar la aplicación real que ve el usuario.
+
+
+
+1. main.jsx: El Punto de Partida
+Este es el archivo que "enciende" la maquinaria. Es el encargado de montar tu código React en el navegador.
+
+El Envoltorio (Providers): Fíjate que aquí envuelves a <App /> con CarritoProvider y BrowserRouter. Esto es crucial: significa que cualquier pantalla de tu app, sin excepción, tendrá acceso a la lógica del carrito y a la navegación.
+
+StrictMode: Ayuda a detectar problemas potenciales en el código durante el desarrollo.
+
+2. App.jsx: La Columna Vertebral y el Enrutador
+Este archivo define la estructura visual global y decide qué se muestra según la URL.
+
+Orquestación de Datos: En el useEffect, llamas a getProducts de tu servicio y usas toProductCardModel de tu mapper. Aquí es donde ocurre la magia que transforma los datos del backend en tarjetas visuales.
+
+Sistema de Rutas: Define los caminos principales: /catalogo para las compras, /dashboard para la administración, /login para la seguridad, y los flujos de pago como /checkout-steps.
+
+Layout Global: Mantiene elementos fijos como la Navbar, el Footer y el WhatsAppButton, asegurando que la experiencia sea consistente mientras navegas por las diferentes páginas.
+
+-------------------------------------------
+
+
+
+
+
+Resumen del Flujo Completo
+Ahora que hemos visto todo, así es como interactúa una pieza con otra cuando, por ejemplo, un usuario entra a ver el catálogo:
+
+Entrada (main.jsx): Se cargan los proveedores de datos (Carrito, Rutas).
+
+Estructura (App.jsx): Se renderiza la base de la app y se piden los productos al servidor.
+
+Comunicación (services): El servicio hace la petición a la API usando el axiosClient.
+
+Traducción (mappers): Los datos que llegan se limpian y formatean (precios, imágenes).
+
+Visualización (App.jsx -> ProductCard): Los datos mapeados se pasan a los componentes, que usan los estilos de index.css para verse bien.
+
+Interacción (hooks & context): Si el usuario compra, un Hook ejecuta la lógica y el Context guarda el producto, actualizando el icono del carrito en la Navbar instantáneamente.
+
+
+
+
+
+
+
+
+
+
+
+----------------- ----------------------------- ------------------------------------ ----------------------------- -------------------
+
+api => es la capa de comunicacion entre el frontend y el backend, se encarga de enviar solicitudes al servidor y recibir respuestas.
+
+fetch => es una función nativa de JavaScript que se utiliza para realizar solicitudes HTTP. Permite enviar solicitudes al servidor y manejar las respuestas de manera asíncrona.
+
+async/await => son palabras clave de JavaScript que se utilizan para manejar operaciones asíncronas de manera más legible. async se utiliza para declarar una función asíncrona, mientras que await se utiliza para esperar a que una promesa se resuelva antes de continuar con la ejecución del código.
+
+JSON => es un formato de datos ligero y fácil de leer que se utiliza para intercambiar información entre el frontend y el backend. Se utiliza comúnmente para enviar datos estructurados en las solicitudes y respuestas HTTP.
+
+CORS => Cross-Origin Resource Sharing, es un mecanismo de seguridad que permite a los servidores controlar qué recursos pueden ser accedidos por dominios externos. Es importante configurar correctamente CORS en el backend para permitir que el frontend pueda comunicarse con él sin problemas.
+
+Axios => es una biblioteca de JavaScript que se utiliza para realizar solicitudes HTTP. Proporciona una interfaz más fácil de usar que fetch y ofrece características adicionales como la cancelación de solicitudes, la interceptación de solicitudes y respuestas, y la transformación de datos. Es una alternativa popular a fetch para manejar la comunicación entre el frontend y el backend.
+
+RESTful API => es un estilo de arquitectura de software para diseñar servicios web. Se basa en el uso de recursos y métodos HTTP para realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) en los datos. Las APIs RESTful son comunes en la comunicación entre el frontend y el backend.
+
+GraphQL => es un lenguaje de consulta para APIs que permite a los clientes solicitar exactamente los datos que necesitan. A diferencia de las APIs RESTful, GraphQL permite a los clientes especificar la estructura de los datos que desean recibir, lo que puede reducir la cantidad de solicitudes necesarias para obtener la información requerida. Es una alternativa popular a REST para la comunicación entre el frontend y el backend.
+WebSockets => es un protocolo de comunicación que permite una comunicación bidireccional en tiempo real entre el frontend y el backend. A diferencia de las solicitudes HTTP tradicionales, los WebSockets permiten una conexión persistente entre el cliente y el servidor, lo que facilita la transmisión de datos en tiempo real sin la necesidad de realizar múltiples solicitudes. Es útil para aplicaciones que requieren actualizaciones en tiempo real, como chats o juegos en línea.
+
+JWT => JSON Web Tokens, es un estándar abierto para la transmisión segura de información entre el frontend y el backend. Se utiliza comúnmente para la autenticación y autorización de usuarios. Un JWT contiene información codificada que puede ser verificada y confiable, lo que permite al backend validar la identidad del usuario sin necesidad de almacenar sesiones en el servidor.
+
+OAuth => es un protocolo de autorización que permite a los usuarios otorgar acceso limitado a sus recursos en un servidor a aplicaciones de terceros sin compartir sus credenciales. Es comúnmente utilizado para permitir que los usuarios inicien sesión en una aplicación utilizando sus cuentas de redes sociales o servicios de autenticación externos.
+
+CSRF => Cross-Site Request Forgery, es un tipo de ataque en el que un atacante engaña a un usuario para que realice una acción no deseada en una aplicación web en la que está autenticado. Para protegerse contra los ataques CSRF, es importante implementar medidas de seguridad como tokens CSRF, que son valores únicos generados por el servidor y enviados al cliente para verificar la autenticidad de las solicitudes.
+
+
+
+Componente: Llama a una función en productsService.js.
+
+Service: Usa el apiClient (axios) para pedir los datos.
+
+Mapper (Aquí es la unión): El servicio recibe el JSON crudo, y antes de devolverlo al componente, se pasa por el Mapper que vimos antes (mapProductFromApi).
+
+Resultado: El componente recibe un objeto limpio, con precios formateados y URLs de imagen seguras.

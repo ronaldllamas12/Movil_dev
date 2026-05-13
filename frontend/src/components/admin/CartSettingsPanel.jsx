@@ -1,3 +1,4 @@
+// aca se muestran las configuraciones del carrito
 import { Settings2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getCartTaxSettings, updateCartTaxSettings } from '../../api/services/cartService';
