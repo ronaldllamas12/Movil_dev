@@ -53,7 +53,7 @@ function resolveApiBaseUrl() { // detecta si estamos en desarrollo o en producci
 
 const apiClient = axios.create({
   baseURL: resolveApiBaseUrl(),
-  timeout: 15000,
+  timeout: 30000, // extensión para despliegue en entornos donde el backend puede tardar en despertarse
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
