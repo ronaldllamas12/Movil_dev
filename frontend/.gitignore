@@ -28,3 +28,6 @@ coverage
 cypress/downloads
 cypress/screenshots
 cypress/videos
+
+# package-lock.json
+package-lock.json
