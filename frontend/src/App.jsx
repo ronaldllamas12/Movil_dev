@@ -1,3 +1,4 @@
+// app.jsx  contiene la estructura general de la aplicación, incluyendo rutas, layout y lógica global.
 import { useEffect, useState } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import { toProductCardModel } from './api/mappers/productMapper';

@@ -6,7 +6,20 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import globals from 'globals'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage']),
+  globalIgnores(['dist', 'coverage', '.nyc_output', 'cypress/downloads', 'cypress/screenshots', 'cypress/videos']),
+  {
+    files: ['cypress/**/*.js', 'cypress.config.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        cy: 'readonly',
+        Cypress: 'readonly',
+      },
+    },
+  },
   {
     files: ['vite.config.js', 'eslint.config.js'],
     languageOptions: {
@@ -15,6 +28,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.{js,jsx}'],
+    ignores: ['cypress/**'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,

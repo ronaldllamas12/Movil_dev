@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+coverage
+.nyc_output
+cypress/downloads
+cypress/screenshots
+cypress/videos
+
+# package-lock.json
+# package-lock.json

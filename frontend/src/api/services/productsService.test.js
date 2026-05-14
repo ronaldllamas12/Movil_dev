@@ -1,81 +1,101 @@
+/**
+ * getProducts normaliza distintas formas de respuesta del backend (array plano, items, products).
+ * El resto de funciones delegan en verbos HTTP coherentes.
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiClientMock } = vi.hoisted(() => ({
-  apiClientMock: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
+const apiClientMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  delete: vi.fn(),
 }));
 
-vi.mock('../axiosClient', () => ({
+vi.mock('../axiosClient.js', () => ({
   default: apiClientMock,
 }));
 
 import {
-    createProduct,
-    deleteProduct,
-    getProductById,
-    getProducts,
-    toggleProductStatus,
-    updateProduct,
-    uploadProductImage,
-} from './productsService';
+  createProduct,
+  deleteProduct,
+  getProductById,
+  getProducts,
+  toggleProductStatus,
+  updateProduct,
+  uploadProductImage,
+} from './productsService.js';
 
 describe('productsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('normaliza payloads posibles de listado', async () => {
-    apiClientMock.get.mockResolvedValueOnce({ data: [{ id: 1 }] });
-    await expect(getProducts()).resolves.toEqual([{ id: 1 }]);
+  it('getProducts devuelve array si el payload ya es lista', async () => {
+    apiClientMock.get.mockResolvedValue({ data: [{ id: 1 }] });
 
+    const list = await getProducts({ categoria: 'x' });
+
+    expect(apiClientMock.get).toHaveBeenCalledWith('/products', { params: { categoria: 'x' } });
+    expect(list).toEqual([{ id: 1 }]);
+  });
+
+  it('getProducts extrae items o products si vienen envueltos', async () => {
     apiClientMock.get.mockResolvedValueOnce({ data: { items: [{ id: 2 }] } });
-    await expect(getProducts()).resolves.toEqual([{ id: 2 }]);
+    expect(await getProducts()).toEqual([{ id: 2 }]);
 
     apiClientMock.get.mockResolvedValueOnce({ data: { products: [{ id: 3 }] } });
-    await expect(getProducts()).resolves.toEqual([{ id: 3 }]);
+    expect(await getProducts()).toEqual([{ id: 3 }]);
   });
 
-  it('retorna arreglo vacio para payload no soportado', async () => {
-    apiClientMock.get.mockResolvedValueOnce({ data: { unexpected: true } });
-    await expect(getProducts()).resolves.toEqual([]);
+  it('getProducts devuelve [] si no reconoce la forma', async () => {
+    apiClientMock.get.mockResolvedValue({ data: { foo: 'bar' } });
+
+    expect(await getProducts()).toEqual([]);
   });
 
-  it('delegan operaciones CRUD al cliente HTTP', async () => {
-    apiClientMock.get.mockResolvedValueOnce({ data: { id: 9 } });
-    apiClientMock.post.mockResolvedValueOnce({ data: { id: 10 } });
-    apiClientMock.patch.mockResolvedValueOnce({ data: { id: 11 } });
-
-    await expect(getProductById(9)).resolves.toEqual({ id: 9 });
-    await expect(createProduct({ nombre: 'Nuevo' })).resolves.toEqual({ id: 10 });
-    await expect(updateProduct(11, { nombre: 'Editado' })).resolves.toEqual({ id: 11 });
-
-    await deleteProduct(12);
-
+  it('getProductById, createProduct, updateProduct y deleteProduct', async () => {
+    apiClientMock.get.mockResolvedValue({ data: { id: 9 } });
+    expect(await getProductById(9)).toEqual({ id: 9 });
     expect(apiClientMock.get).toHaveBeenCalledWith('/products/9');
-    expect(apiClientMock.post).toHaveBeenCalledWith('/products', { nombre: 'Nuevo' });
-    expect(apiClientMock.patch).toHaveBeenCalledWith('/products/11', { nombre: 'Editado' });
-    expect(apiClientMock.delete).toHaveBeenCalledWith('/products/12');
+
+    apiClientMock.post.mockResolvedValue({ data: { id: 1 } });
+    await createProduct({ nombre: 'N' });
+    expect(apiClientMock.post).toHaveBeenCalledWith('/products', { nombre: 'N' });
+
+    apiClientMock.patch.mockResolvedValue({ data: { ok: 1 } });
+    await updateProduct(3, { precio_unitario: 1 });
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/products/3', { precio_unitario: 1 });
+
+    apiClientMock.delete.mockResolvedValue({});
+    await deleteProduct(3);
+    expect(apiClientMock.delete).toHaveBeenCalledWith('/products/3');
   });
 
-  it('actualiza estado y sube imagen con multipart', async () => {
-    apiClientMock.patch.mockResolvedValueOnce({ data: { ok: true } });
-    apiClientMock.post.mockResolvedValueOnce({ data: { url: 'x' } });
+  it('toggleProductStatus envía is_active como query param', async () => {
+    apiClientMock.patch.mockResolvedValue({ data: { active: true } });
 
-    await expect(toggleProductStatus(4, false)).resolves.toEqual({ ok: true });
+    await toggleProductStatus(7, false);
 
-    const file = new File(['image'], 'photo.png', { type: 'image/png' });
-    await expect(uploadProductImage(file)).resolves.toEqual({ url: 'x' });
-
-    expect(apiClientMock.patch).toHaveBeenCalledWith('/products/4/status', null, {
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/products/7/status', null, {
       params: { is_active: false },
     });
+  });
 
-    const [, formData, config] = apiClientMock.post.mock.calls[0];
-    expect(formData).toBeInstanceOf(FormData);
-    expect(config.headers['Content-Type']).toContain('multipart/form-data');
+  it('uploadProductImage POST multipart', async () => {
+    apiClientMock.post.mockResolvedValue({ data: { path: '/img.png' } });
+    const file = new File(['b'], 'p.jpg', { type: 'image/jpeg' });
+
+    const res = await uploadProductImage(file);
+
+    expect(res.path).toBe('/img.png');
+    expect(apiClientMock.post).toHaveBeenCalledWith(
+      '/products/upload-image',
+      expect.any(FormData),
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
   });
 });

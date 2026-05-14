@@ -1,3 +1,4 @@
+//aca se muestran los errores de autenticación
 export default function AuthErrorMessage({ errorMsg }) {
   if (!errorMsg) return null;
 

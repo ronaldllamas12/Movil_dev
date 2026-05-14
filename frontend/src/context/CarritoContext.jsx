@@ -1,4 +1,5 @@
-﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+﻿// ES EL CORAZON COMERCIAL DE LA APP, EL CONTEXTO DE CARRITO GESTIONA TODO LO RELACIONADO CON EL CARRITO DE COMPRAS, INCLUYENDO ESTADO, FUNCIONES DE MANEJO Y SINCRONIZACIÓN CON EL BACKEND.
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { getCurrentUser, logoutUser } from '../api/services/authService';
 import {

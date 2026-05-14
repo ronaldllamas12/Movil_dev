@@ -1,3 +1,4 @@
+// esto hace que se muestren las características principales de la tienda de forma atractiva y clara, con íconos representativos y un diseño limpio. cada característica tiene un título y una descripción breve para que los usuarios entiendan rápidamente los beneficios de comprar en esta tienda. el diseño es responsive, adaptándose bien a diferentes tamaños de pantalla.
 import { Truck, ShieldCheck, CreditCard, Smartphone } from 'lucide-react';
 
 export default function Features() {

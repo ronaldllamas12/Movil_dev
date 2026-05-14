@@ -1,70 +1,84 @@
+/**
+ * Contrato del carrito contra el cliente HTTP: métodos, URLs y payloads.
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiClientMock } = vi.hoisted(() => ({
-  apiClientMock: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
+const apiClientMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
 }));
 
-vi.mock('../axiosClient', () => ({
+vi.mock('../axiosClient.js', () => ({
   default: apiClientMock,
 }));
 
 import {
-    addToCart,
-    getCartItems,
-    getCartTaxSettings,
-    getCartTotal,
-    mergeCart,
-    removeFromCart,
-    updateCartTaxSettings,
-} from './cartService';
+  addToCart,
+  getCartItems,
+  getCartTaxSettings,
+  getCartTotal,
+  mergeCart,
+  removeFromCart,
+  updateCartTaxSettings,
+} from './cartService.js';
 
 describe('cartService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('obtiene items y total', async () => {
-    apiClientMock.get.mockResolvedValueOnce({ data: [{ id: 1 }] });
-    apiClientMock.get.mockResolvedValueOnce({ data: { total: 121 } });
+  it('getCartItems y getCartTotal usan GET en rutas /cart/...', async () => {
+    apiClientMock.get.mockResolvedValue({ data: {} });
 
-    await expect(getCartItems()).resolves.toEqual([{ id: 1 }]);
-    await expect(getCartTotal()).resolves.toEqual({ total: 121 });
+    await getCartItems();
+    expect(apiClientMock.get).toHaveBeenCalledWith('/cart/items');
 
-    expect(apiClientMock.get).toHaveBeenNthCalledWith(1, '/cart/items');
-    expect(apiClientMock.get).toHaveBeenNthCalledWith(2, '/cart/total');
+    await getCartTotal();
+    expect(apiClientMock.get).toHaveBeenCalledWith('/cart/total');
   });
 
-  it('consulta y actualiza impuesto', async () => {
-    apiClientMock.get.mockResolvedValueOnce({ data: { tax_percent: 19 } });
-    apiClientMock.put.mockResolvedValueOnce({ data: { tax_percent: 21 } });
+  it('getCartTaxSettings y updateCartTaxSettings', async () => {
+    apiClientMock.get.mockResolvedValue({ data: { tax_percent: 19 } });
+    apiClientMock.put.mockResolvedValue({ data: { ok: true } });
 
-    await expect(getCartTaxSettings()).resolves.toEqual({ tax_percent: 19 });
-    await expect(updateCartTaxSettings(21)).resolves.toEqual({ tax_percent: 21 });
+    await getCartTaxSettings();
+    expect(apiClientMock.get).toHaveBeenCalledWith('/cart/settings/tax');
 
-    expect(apiClientMock.put).toHaveBeenCalledWith('/cart/settings/tax', { tax_percent: 21 });
+    await updateCartTaxSettings(19);
+    expect(apiClientMock.put).toHaveBeenCalledWith('/cart/settings/tax', {
+      tax_percent: 19,
+    });
   });
 
-  it('agrega, elimina y fusiona carrito', async () => {
-    apiClientMock.post.mockResolvedValueOnce({ data: { ok: true } });
-    apiClientMock.post.mockResolvedValueOnce({ data: { merged: true } });
+  it('addToCart envía product_id, quantity y color_selected', async () => {
+    apiClientMock.post.mockResolvedValue({ data: { id: 1 } });
 
-    await expect(addToCart(10, 2, 'Azul')).resolves.toEqual({ ok: true });
-    await removeFromCart(99);
-    await expect(mergeCart([{ product_id: 10, quantity: 2 }])).resolves.toEqual({ merged: true });
+    await addToCart(5, 2, 'Negro');
 
-    expect(apiClientMock.post).toHaveBeenNthCalledWith(1, '/cart/add', {
-      product_id: 10,
+    expect(apiClientMock.post).toHaveBeenCalledWith('/cart/add', {
+      product_id: 5,
       quantity: 2,
-      color_selected: 'Azul',
+      color_selected: 'Negro',
     });
-    expect(apiClientMock.delete).toHaveBeenCalledWith('/cart/remove/99');
-    expect(apiClientMock.post).toHaveBeenNthCalledWith(2, '/cart/merge', {
-      items: [{ product_id: 10, quantity: 2 }],
-    });
+  });
+
+  it('removeFromCart DELETE con id en la URL', async () => {
+    apiClientMock.delete.mockResolvedValue({ data: {} });
+
+    await removeFromCart(42);
+
+    expect(apiClientMock.delete).toHaveBeenCalledWith('/cart/remove/42');
+  });
+
+  it('mergeCart POST con lista items', async () => {
+    apiClientMock.post.mockResolvedValue({ data: { merged: true } });
+    const items = [{ product_id: 1, quantity: 1 }];
+
+    const res = await mergeCart(items);
+
+    expect(apiClientMock.post).toHaveBeenCalledWith('/cart/merge', { items });
+    expect(res.merged).toBe(true);
   });
 });

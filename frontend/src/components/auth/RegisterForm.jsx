@@ -1,3 +1,4 @@
+// aca se muestra el formulario de registro con los campos de nombre, email, contraseña y confirmación de contraseña. también maneja la validación de errores y muestra un mensaje de error debajo de cada campo si es necesario. además, incluye una sección para iniciar sesión con Google si está habilitado.
 import { Mail, User } from 'lucide-react';
 import GoogleSignInSection from './GoogleSignInSection';
 import PasswordInput from './PasswordInput';

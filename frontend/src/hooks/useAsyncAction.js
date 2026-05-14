@@ -1,3 +1,5 @@
+// el utiliario de carga
+//evitar tener que escribir try/catch y manejar estados de loading manualmente en cada componente.
 import { useState } from 'react';
 import { getApiErrorMessage } from '../api/axiosClient';
 

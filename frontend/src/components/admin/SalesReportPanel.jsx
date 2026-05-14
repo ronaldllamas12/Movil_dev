@@ -1,3 +1,4 @@
+//aca se carga el reporte de ventas
 import {
   BarChart3,
   DollarSign,

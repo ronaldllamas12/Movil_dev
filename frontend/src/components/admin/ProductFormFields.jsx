@@ -1,3 +1,4 @@
+//esto hace que el formulario de creación y edición de productos en el panel de administración sea completo y fácil de usar, con campos para toda la información relevante del producto, incluyendo variantes por color con stock e imagen específica. también maneja la carga de imágenes para cada variante y muestra una vista previa. el diseño es limpio y organizado, con validaciones básicas para asegurar que se ingresen datos correctos.
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CATEGORY_OPTIONS } from './productFormConfig';
@@ -19,7 +20,7 @@ function FormInput({ label, name, value, onChange, required = false, type = 'tex
       />
     </label>
   );
-}
+} 
 
 function FormTextarea({ label, name, value, onChange, required = false, placeholder = '' }) {
   return (

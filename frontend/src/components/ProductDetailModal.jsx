@@ -1,4 +1,5 @@
 // components/ProductDetailModal.jsx
+// esto hace que al hacer click en "ver detalles" se abra un modal con toda la info del producto, incluyendo imagen grande, descripción, precio, stock, selector de color y cantidad, botón para agregar al carrito y especificaciones técnicas. también maneja el estado de carga y muestra un spinner mientras se cargan los detalles completos del producto. el modal es responsive y tiene un diseño limpio y moderno.
 import { Battery, Camera, Check, Cpu, HardDrive, MemoryStick, Ruler, Shield, ShoppingCart, Wifi, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { mapProductFromApi } from '../api/mappers/productMapper';

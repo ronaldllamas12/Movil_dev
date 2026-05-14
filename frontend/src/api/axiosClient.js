@@ -1,6 +1,7 @@
+// hacemos las lladas directa a la api. todo comienza aca
 import axios from 'axios';
 
-function resolveApiBaseUrl() {
+function resolveApiBaseUrl() { // detecta si estamos en desarrollo o en produccion, asegurando que las peticiones llegen al servidor correcto.
   const raw = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BASE_URL || '').trim();
   const normalized = raw.replace(/\/+$/, '');
 
@@ -68,7 +69,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-export function getApiErrorMessage(error) {
+export function getApiErrorMessage(error) { // centraliza como se extraen los mensajes de error, lo que facilita mostrar alertas claras al usuario.
   return (
     error?.response?.data?.detail ||
     error?.response?.data?.message ||

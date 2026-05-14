@@ -1,3 +1,4 @@
+//aca se muestran los productos en el panel de admin
 import { Loader2, Pencil, Plus, Power, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {

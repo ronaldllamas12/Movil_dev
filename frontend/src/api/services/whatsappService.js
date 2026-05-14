@@ -1,3 +1,4 @@
+// gestion de la conexion por whatsapp, desde admin
 import apiClient from '../axiosClient';
 
 export const getWhatsAppStatus = () =>

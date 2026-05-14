@@ -1,6 +1,7 @@
+// es el que alimenta al catalogo
 import apiClient from '../axiosClient';
 
-export async function getProducts(params = {}) {
+export async function getProducts(params = {}) { //normalizar la respuesta si el backend envía los datos en diferentes formatos (items, products, etc.).
   const response = await apiClient.get('/products', { params });
   const payload = response.data;
 

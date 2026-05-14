@@ -1,3 +1,4 @@
+//aca se maneja el panel de whatsapp
 import { Loader2, MessageCircle, Power, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
