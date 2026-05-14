@@ -70,7 +70,35 @@ function formatDateTime(value) {
   if (!value) {
     return 'Sin fecha';
   }
-  return new Date(value).toLocaleString('es-CO');
+  
+  // Convertir string ISO a Date correctamente
+  let dateObj;
+  
+  // Si es string, parsear como UTC
+  if (typeof value === 'string') {
+    // Si no tiene zona, asumir UTC agregando 'Z'
+    const iso = value.includes('+') || value.includes('Z') 
+      ? value 
+      : value.replace(/Z?$/, 'Z');
+    dateObj = new Date(iso);
+    console.debug('[formatDateTime] Raw value:', value, '→ ISO:', iso, '→ Date:', dateObj.toISOString());
+  } else {
+    dateObj = new Date(value);
+  }
+  
+  // Validar fecha válida
+  if (isNaN(dateObj.getTime())) {
+    return 'Fecha inválida';
+  }
+  
+  return dateObj.toLocaleString('es-CO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function toReadableStatus(status) {
