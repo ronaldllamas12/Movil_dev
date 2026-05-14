@@ -12,7 +12,7 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
   const [googleScriptError, setGoogleScriptError] = useState('');
   const isGoogleEnabled = Boolean(GOOGLE_CLIENT_ID);
 
-  const renderGoogleButtons = () => {
+  const renderGoogleButtons = useCallback(() => {
     if (!window.google?.accounts?.id) return;
     if (googleButtonRef.current) {
       window.google.accounts.id.renderButton(googleButtonRef.current, {
@@ -32,7 +32,7 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
         width: 360,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initializeGoogleButton = () => {
@@ -78,12 +78,12 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
     document.head.appendChild(script);
 
     return () => script.removeEventListener('load', handleScriptLoad);
-  }, [isGoogleEnabled]);
+  }, [isGoogleEnabled, onCredential, renderGoogleButtons]);
 
   useEffect(() => {
     if (!isGoogleEnabled || !googleInitializedRef.current) return;
     renderGoogleButtons();
-  }, [activeTab, isGoogleEnabled]);
+  }, [activeTab, isGoogleEnabled, renderGoogleButtons]);
 
   return {
     googleButtonRef,

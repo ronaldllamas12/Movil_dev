@@ -167,17 +167,17 @@ export const CarritoProvider = ({ children }) => {
   };
 
   // Carga el carrito guest desde localStorage
-  const refreshGuestCart = (taxRate) => {
+  const refreshGuestCart = useCallback((taxRate = DEFAULT_CART_SETTINGS.taxRate) => {
     const items = loadGuestCart();
     setCarrito(items);
-    setCartTotals(computeGuestTotals(items, taxRate ?? cartSettings.taxRate));
-  };
+    setCartTotals(computeGuestTotals(items, taxRate));
+  }, []);
 
   const refreshCart = async () => {
     if (isLoggedIn) {
       await refreshServerCart();
     } else {
-      refreshGuestCart();
+      refreshGuestCart(cartSettings.taxRate);
     }
   };
 
@@ -187,7 +187,7 @@ export const CarritoProvider = ({ children }) => {
 
       if (!token) {
         setIsAuthLoading(false);
-        refreshGuestCart();
+        refreshGuestCart(cartSettings.taxRate);
         return;
       }
 
@@ -202,12 +202,12 @@ export const CarritoProvider = ({ children }) => {
         setCurrentUser(null);
         setIsLoggedIn(false);
         setIsAuthLoading(false);
-        refreshGuestCart();
+        refreshGuestCart(cartSettings.taxRate);
       }
     };
 
     hydrateSession();
-  }, []);
+  }, [cartSettings.taxRate, refreshGuestCart]);
 
   const login = async (user) => {
     setCurrentUser(user);
@@ -247,7 +247,7 @@ export const CarritoProvider = ({ children }) => {
       setCurrentUser(null);
       setIsLoggedIn(false);
       localStorage.removeItem('access_token');
-      refreshGuestCart();
+      refreshGuestCart(cartSettings.taxRate);
     }
   };
 
@@ -288,7 +288,7 @@ export const CarritoProvider = ({ children }) => {
         }
 
         saveGuestCart(items);
-        refreshGuestCart();
+        refreshGuestCart(cartSettings.taxRate);
         return true;
       }
 
@@ -308,7 +308,7 @@ export const CarritoProvider = ({ children }) => {
       if (!isLoggedIn) {
         const items = loadGuestCart().filter((i) => (i.productId ?? i.id) !== id);
         saveGuestCart(items);
-        refreshGuestCart();
+        refreshGuestCart(cartSettings.taxRate);
         return;
       }
 
@@ -343,7 +343,7 @@ export const CarritoProvider = ({ children }) => {
             saveGuestCart(items);
           }
         }
-        refreshGuestCart();
+        refreshGuestCart(cartSettings.taxRate);
         return;
       }
 
@@ -368,9 +368,16 @@ export const CarritoProvider = ({ children }) => {
     }
   };
 
-  const updateCartSettings = (changes) => {
-    setCartSettings((prev) => normalizeCartSettings({ ...prev, ...changes }));
-  };
+  const updateCartSettings = useCallback((changes) => {
+    setCartSettings((prev) => {
+      const next = normalizeCartSettings({ ...prev, ...changes });
+
+      const sameTaxRate = Number(prev.taxRate) === Number(next.taxRate);
+      const sameDiscountRules = JSON.stringify(prev.discountRules) === JSON.stringify(next.discountRules);
+
+      return sameTaxRate && sameDiscountRules ? prev : next;
+    });
+  }, []);
 
   const itemCount = useMemo(
     () => carrito.reduce((acc, item) => acc + Number(item.cantidad || 0), 0),
@@ -381,7 +388,7 @@ export const CarritoProvider = ({ children }) => {
   const limpiarCarrito = async () => {
     if (!isLoggedIn) {
       clearGuestCart();
-      refreshGuestCart();
+      refreshGuestCart(cartSettings.taxRate);
       return;
     }
     // Para server: eliminar todos los items uno a uno

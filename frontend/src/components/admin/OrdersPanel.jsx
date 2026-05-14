@@ -1,28 +1,28 @@
 //aca se muestran los pedidos en la pantalla de admin
 import {
-    ArrowRight,
-    CheckCircle2,
-    Circle,
-    Clock3,
-    CreditCard,
-    FileText,
-    Loader2,
-    Mail,
-    MapPin,
-    Package,
-    RotateCcw,
-    Truck,
-    Undo2,
-    User2,
-    XCircle,
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  Clock3,
+  CreditCard,
+  FileText,
+  Loader2,
+  Mail,
+  MapPin,
+  Package,
+  RotateCcw,
+  Truck,
+  Undo2,
+  User2,
+  XCircle,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import {
-    downloadOrderInvoice,
-    getAllOrders,
-    refundOrder,
-    sendOrderInvoice,
-    updateOrderStatus,
+  downloadOrderInvoice,
+  getAllOrders,
+  refundOrder,
+  sendOrderInvoice,
+  updateOrderStatus,
 } from '../../api/services/ordersService';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -71,7 +71,47 @@ function formatDateTime(value) {
   if (!value) {
     return 'Sin fecha';
   }
-  return new Date(value).toLocaleString('es-CO');
+  
+  // El backend envía ISO 8601 con offset: "2026-04-29T19:43:19.748501-05:00"
+  // Necesitamos mostrar la hora en ese offset, no en UTC del navegador
+  
+  if (typeof value === 'string' && value.includes('T')) {
+    // Extraer la parte de hora/fecha antes del offset (+/-)
+    const timePartMatch = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (timePartMatch) {
+      const [, date, hour, minute, second] = timePartMatch;
+      const [year, month, day] = date.split('-');
+      
+      // Crear Date con la fecha local (sin dejar que el navegador interprete el offset)
+      const dateObj = new Date(year, month - 1, day, hour, minute, second);
+      
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toLocaleString('es-CO', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      }
+    }
+  }
+  
+  // Fallback: parsear como ISO y confiar en que el navegador está en la zona correcta
+  const dateObj = new Date(value);
+  if (!isNaN(dateObj.getTime())) {
+    return dateObj.toLocaleString('es-CO', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
+  
+  return 'Fecha inválida';
 }
 
 function toReadableStatus(status) {

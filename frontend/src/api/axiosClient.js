@@ -15,6 +15,13 @@ function resolveApiBaseUrl() { // detecta si estamos en desarrollo o en producci
     const currentHostname = window.location.hostname;
     const currentPort = window.location.port;
 
+    const isVercelHost = currentHostname.endsWith('.vercel.app');
+    const isRenderBackend = /render\.com|onrender\.com/i.test(normalized);
+
+    if (isVercelHost && isRenderBackend) {
+      return '/api';
+    }
+
     if (
       normalized === currentOrigin ||
       normalized === currentHost ||
