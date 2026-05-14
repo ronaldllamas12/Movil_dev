@@ -1,6 +1,6 @@
 // la integracion externa de google
 // este hook se encarga de la autenticacion con google
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
