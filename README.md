@@ -738,7 +738,9 @@ Endpoints del microservicio:
 
 ## Pruebas
 
-La suite esta organizada asi:
+La guia detallada de cada suite esta en [docs/testing.md](docs/testing.md).
+
+Resumen rapido:
 
 | Carpeta | Que valida |
 | --- | --- |
@@ -753,6 +755,7 @@ La suite esta organizada asi:
 | `tests/conftest.py` | Fixtures compartidas, cliente FastAPI y base de pruebas. |
 | `tests/test_register.py` | Smoke/manual de registro contra API local. |
 | `tests/test_smtp.py` | Prueba opcional de conexion SMTP. |
+| `frontend/src/api/mappers/productMapper.test.js` | Mapeo de productos en el frontend. |
 
 Comandos:
 

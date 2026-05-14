@@ -52,11 +52,11 @@ export default function WhatsAppPanel() {
     setLoadingControl(true);
     setError(null);
     try {
-      const result = await connectWhatsApp();
+      await connectWhatsApp();
       setStatus(prev => ({ ...prev, connecting: true }));
       // Espera un poco y luego actualiza el estado
       setTimeout(() => fetchStatus(), 2000);
-    } catch (err) {
+    } catch {
       setError('Error al conectar WhatsApp.');
     } finally {
       setLoadingControl(false);
@@ -71,7 +71,7 @@ export default function WhatsAppPanel() {
       setStatus(prev => ({ ...prev, ready: false, hasQR: false }));
       setQrDataUrl(null);
       fetchStatus();
-    } catch (err) {
+    } catch {
       setError('Error al desconectar WhatsApp.');
     } finally {
       setLoadingControl(false);

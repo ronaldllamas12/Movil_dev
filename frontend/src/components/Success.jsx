@@ -98,7 +98,7 @@ export default function Success() {
     }
 
     finishPayPal();
-  }, []);
+  }, [limpiarCarrito, searchParams]);
 
   return (
     <section className="min-h-[calc(100vh-80px)] bg-[color:var(--bg)] px-4 py-16 text-[color:var(--text)]">

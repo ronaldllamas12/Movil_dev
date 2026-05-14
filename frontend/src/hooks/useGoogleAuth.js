@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
@@ -10,7 +10,7 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
   const [googleScriptError, setGoogleScriptError] = useState('');
   const isGoogleEnabled = Boolean(GOOGLE_CLIENT_ID);
 
-  const renderGoogleButtons = () => {
+  const renderGoogleButtons = useCallback(() => {
     if (!window.google?.accounts?.id) return;
     if (googleButtonRef.current) {
       window.google.accounts.id.renderButton(googleButtonRef.current, {
@@ -30,7 +30,7 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
         width: 360,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initializeGoogleButton = () => {
@@ -76,12 +76,12 @@ export default function useGoogleAuth({ onCredential, activeTab }) {
     document.head.appendChild(script);
 
     return () => script.removeEventListener('load', handleScriptLoad);
-  }, [isGoogleEnabled]);
+  }, [isGoogleEnabled, onCredential, renderGoogleButtons]);
 
   useEffect(() => {
     if (!isGoogleEnabled || !googleInitializedRef.current) return;
     renderGoogleButtons();
-  }, [activeTab, isGoogleEnabled]);
+  }, [activeTab, isGoogleEnabled, renderGoogleButtons]);
 
   return {
     googleButtonRef,

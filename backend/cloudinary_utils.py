@@ -65,7 +65,7 @@ async def upload_image_to_cloudinary(file: UploadFile, folder: str) -> dict[str,
             folder=folder,
             resource_type="image",
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  
         raise HTTPException(
             status_code=502,
             detail="No se pudo subir la imagen a Cloudinary.",

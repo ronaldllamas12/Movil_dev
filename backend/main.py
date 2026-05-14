@@ -67,7 +67,7 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """Health check para monitoreo y probes de infraestructura."""
+    """Health check para monitoreo y pruebas de infraestructura."""
     try:
         with get_engine().connect() as connection:
             connection.execute(text("SELECT 1"))

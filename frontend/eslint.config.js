@@ -6,7 +6,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import globals from 'globals'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'coverage']),
   {
     files: ['vite.config.js', 'eslint.config.js'],
     languageOptions: {
@@ -56,6 +56,17 @@ export default defineConfig([
       'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrors: 'none' }],
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['cypress/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.mocha,
+        cy: 'readonly',
+        Cypress: 'readonly',
+      },
     },
   },
 ])

@@ -33,7 +33,8 @@ export default function CartSettingsPanel() {
           getCartTaxSettings(),
           getProducts(),
         ]);
-        const nextTaxRate = Number(settings?.tax_percent ?? cartSettings.taxRate);
+        const parsedTaxRate = Number(settings?.tax_percent);
+        const nextTaxRate = Number.isFinite(parsedTaxRate) ? parsedTaxRate : 0;
         updateCartSettings({ taxRate: nextTaxRate });
         setTaxRateInput(String(nextTaxRate));
         setProducts(productsData);
@@ -43,7 +44,7 @@ export default function CartSettingsPanel() {
     };
 
     load();
-  }, []);
+  }, [updateCartSettings]);
 
   useEffect(() => {
     const hasValidSelection = products.some(

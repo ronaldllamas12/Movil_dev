@@ -29,7 +29,7 @@ export default function Navbar() {
     if (!isCatalogRoute && searchQuery) {
       setSearchQuery('');
     }
-  }, [location.pathname]); // intencional: no depende de searchQuery para evitar bucles
+  }, [location.pathname, searchQuery]);
 
   return (
     <nav className="w-full bg-[color:var(--surface)] border-b border-[color:var(--border)] sticky top-0 z-50">
